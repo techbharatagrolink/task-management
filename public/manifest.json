@@ -1,0 +1,17 @@
+{
+  "name": "Inhouse Management System",
+  "short_name": "Inhouse MS",
+  "description": "Internal task, work, performance and department monitoring system",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4F46E5",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
+

@@ -1,0 +1,280 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Line, Bar, Doughnut } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js';
+import Link from 'next/link';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import DeadlineTimer from '@/components/DeadlineTimer';
+import { CheckSquare, Clock, AlertCircle, ArrowRight } from 'lucide-react';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend
+);
+
+export default function AdminDashboard() {
+  const [stats, setStats] = useState({
+    totalEmployees: 0,
+    activeTasks: 0,
+    completedTasks: 0,
+    pendingLeaves: 0
+  });
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      // Fetch employees
+      const empRes = await fetch('/api/employees');
+      const empData = await empRes.json();
+      const totalEmployees = empData.employees?.length || 0;
+
+      // Fetch tasks
+      const taskRes = await fetch('/api/tasks');
+      const taskData = await taskRes.json();
+      const allTasks = taskData.tasks || [];
+      setTasks(allTasks);
+      const pendingTasks = allTasks.filter(t => t.status === 'pending').length;
+      const activeTasks = allTasks.filter(t => t.status === 'in_progress').length;
+      const completedTasks = allTasks.filter(t => t.status === 'completed').length;
+      const cancelledTasks = allTasks.filter(t => t.status === 'cancelled').length;
+
+      // Fetch leaves
+      const leaveRes = await fetch('/api/leaves?status=pending');
+      const leaveData = await leaveRes.json();
+      const pendingLeaves = leaveData.leaves?.length || 0;
+
+      setStats({
+        totalEmployees,
+        pendingTasks,
+        activeTasks,
+        completedTasks,
+        cancelledTasks,
+        pendingLeaves
+      });
+    } catch (err) {
+      console.error('Failed to fetch dashboard data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  const taskChartData = {
+    labels: ['Pending', 'In Progress', 'Completed', 'Cancelled'],
+    datasets: [{
+      label: 'Tasks',
+      data: [
+        stats.pendingTasks || 0,
+        stats.activeTasks,
+        stats.completedTasks,
+        stats.cancelledTasks || 0
+      ],
+      backgroundColor: [
+        'rgba(255, 206, 86, 0.6)',
+        'rgba(54, 162, 235, 0.6)',
+        'rgba(75, 192, 192, 0.6)',
+        'rgba(255, 99, 132, 0.6)'
+      ]
+    }]
+  };
+
+  return (
+    <div>
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">Admin Dashboard</h1>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Total Employees</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.totalEmployees}</p>
+            </div>
+            <div className="bg-indigo-100 rounded-full p-3">
+              <span className="text-2xl">👥</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Active Tasks</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.activeTasks}</p>
+            </div>
+            <div className="bg-blue-100 rounded-full p-3">
+              <span className="text-2xl">✅</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Completed Tasks</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.completedTasks}</p>
+            </div>
+            <div className="bg-green-100 rounded-full p-3">
+              <span className="text-2xl">✓</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Pending Leaves</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.pendingLeaves}</p>
+            </div>
+            <div className="bg-yellow-100 rounded-full p-3">
+              <span className="text-2xl">📅</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">Task Status Distribution</h2>
+          <Doughnut data={taskChartData} />
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
+          <div className="space-y-3">
+            <a
+              href="/dashboard/employees"
+              className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+            >
+              <span className="font-medium">Manage Employees</span>
+              <p className="text-sm text-gray-600">View and manage employee profiles</p>
+            </a>
+            <a
+              href="/dashboard/tasks"
+              className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+            >
+              <span className="font-medium">View All Tasks</span>
+              <p className="text-sm text-gray-600">Monitor task progress and assignments</p>
+            </a>
+            <a
+              href="/dashboard/leaves"
+              className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+            >
+              <span className="font-medium">Review Leaves</span>
+              <p className="text-sm text-gray-600">Approve or reject leave requests</p>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Tasks with Timers */}
+      <Card className="mt-6">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckSquare className="h-5 w-5 text-primary" />
+              <CardTitle>Recent Tasks</CardTitle>
+            </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/dashboard/tasks">
+                View All
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Link>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {tasks.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No tasks found</p>
+          ) : (
+            <div className="space-y-3">
+              {tasks
+                .filter(t => t.status !== 'completed' && t.status !== 'cancelled')
+                .slice(0, 5)
+                .map((task) => (
+                  <Link
+                    key={task.id}
+                    href={`/dashboard/tasks/${task.id}`}
+                    className="block p-4 border rounded-lg hover:bg-accent transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-sm mb-1 truncate">{task.title}</h3>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant={task.priority === 'critical' ? 'destructive' : task.priority === 'high' ? 'default' : 'secondary'}>
+                            {task.priority}
+                          </Badge>
+                          <Badge variant={task.status === 'in_progress' ? 'default' : 'outline'}>
+                            {task.status.replace('_', ' ')}
+                          </Badge>
+                          {task.subtasks && task.subtasks.length > 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              {task.subtasks.length} subtask{task.subtasks.length !== 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-2">
+                          <div className="w-full bg-secondary rounded-full h-1.5">
+                            <div
+                              className="bg-primary h-1.5 rounded-full transition-all"
+                              style={{ width: `${task.progress || 0}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">{task.progress || 0}% complete</p>
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0">
+                        {task.deadline ? (
+                          <DeadlineTimer deadline={task.deadline} />
+                        ) : (
+                          <Badge variant="outline" className="gap-1.5">
+                            <Clock className="h-3 w-3" />
+                            <span>No deadline</span>
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
