@@ -2,7 +2,6 @@
 import { NextResponse } from 'next/server';
 import { comparePassword, generateToken, checkNDAAccepted, getUserByEmail } from '@/lib/auth';
 import { query } from '@/lib/db';
-import { cookies } from 'next/headers';
 
 export async function POST(request) {
   try {
@@ -56,21 +55,12 @@ export async function POST(request) {
       [user.id, 'login', 'auth', `User logged in from ${ipAddress}`]
     );
 
-    // Set cookie
-    const cookieStore = await cookies();
-    cookieStore.set('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 86400, // 24 hours
-      path: '/' // Ensure cookie is available across all routes
-    });
-
     // Check NDA status
     const ndaAccepted = await checkNDAAccepted(user.id);
 
     // SECURITY FIX: Don't return token in response (it's in httpOnly cookie)
-    return NextResponse.json({
+    // Create response with JSON data
+    const response = NextResponse.json({
       success: true,
       user: {
         id: user.id,
@@ -82,6 +72,18 @@ export async function POST(request) {
       },
       ndaAccepted
     });
+
+    // Set cookie on the response object (required for Next.js App Router)
+    const isProduction = process.env.NODE_ENV === 'production';
+    response.cookies.set('token', token, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      maxAge: 86400, // 24 hours
+      path: '/' // Ensure cookie is available across all routes
+    });
+
+    return response;
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(

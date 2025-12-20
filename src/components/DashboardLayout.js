@@ -93,7 +93,7 @@ export default function DashboardLayout({ children, user }) {
   return (
     <div className="min-h-screen bg-background">
       {/* Top Navigation */}
-      <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
+      <nav className="sticky top-0 z-50 w-full border-b bg-background backdrop-blur-sm shadow-sm">
         <div className="flex h-16 items-center px-4 sm:px-6 lg:px-8">
           {/* Mobile Menu Button */}
           <Button
@@ -182,7 +182,7 @@ export default function DashboardLayout({ children, user }) {
         {/* Sidebar */}
         <aside
           className={cn(
-            "fixed left-0 z-40 w-64 border-r bg-background transform transition-transform duration-200 ease-in-out",
+            "fixed left-0 z-40 w-64 border-r bg-white transform transition-transform duration-200 ease-in-out",
             "top-0 h-screen lg:top-16 lg:h-[calc(100vh-4rem)]",
             sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           )}

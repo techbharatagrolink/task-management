@@ -2,7 +2,6 @@
 import { NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
 import { query } from '@/lib/db';
-import { cookies } from 'next/headers';
 
 export async function POST(request) {
   try {
@@ -26,11 +25,13 @@ export async function POST(request) {
       );
     }
 
-    // Clear cookie
-    const cookieStore = await cookies();
-    cookieStore.delete('token');
+    // Create response
+    const response = NextResponse.json({ success: true });
+    
+    // Clear cookie on the response object (required for Next.js App Router)
+    response.cookies.delete('token');
 
-    return NextResponse.json({ success: true });
+    return response;
   } catch (error) {
     console.error('Logout error:', error);
     return NextResponse.json(

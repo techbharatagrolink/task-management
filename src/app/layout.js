@@ -16,7 +16,12 @@ export const metadata = {
   description: "Internal task, work, performance and department monitoring system",
   keywords: "management system, task tracking, employee management, attendance, logistics, marketing",
   authors: [{ name: "Inhouse Team" }],
-  viewport: "width=device-width, initial-scale=1",
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({ children }) {
@@ -27,7 +32,6 @@ export default function RootLayout({ children }) {
         <link rel="alternate icon" href="/logo.svg" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#4F46E5" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
