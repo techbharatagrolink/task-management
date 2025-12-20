@@ -101,12 +101,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-4">
       <div className="w-full max-w-md">
         <Card className="shadow-2xl border-0">
           <CardHeader className="space-y-1 text-center pb-8">
             <div className="flex justify-center mb-4">
-              <div className="p-4 bg-primary/10 dark:bg-primary/20 rounded-2xl ring-4 ring-primary/5">
+              <div className="p-4 bg-primary/10 rounded-2xl ring-4 ring-primary/5">
                 <Building2 className="h-10 w-10 text-primary" />
               </div>
             </div>
@@ -204,7 +204,7 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
-                className="w-full h-11 text-base font-semibold"
+                className="w-full h-11 text-base font-semibold cursor-pointer"
                 disabled={loading || !email || !password}
               >
                 {loading ? (

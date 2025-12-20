@@ -19,7 +19,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import DeadlineTimer from '@/components/DeadlineTimer';
-import { CheckSquare, Clock, AlertCircle, ArrowRight } from 'lucide-react';
+import { 
+  CheckSquare, 
+  Clock, 
+  AlertCircle, 
+  ArrowRight, 
+  Users, 
+  Activity, 
+  CheckCircle2, 
+  CalendarClock,
+  UserCog,
+  ListTodo,
+  FileText
+} from 'lucide-react';
 
 ChartJS.register(
   CategoryScale,
@@ -124,7 +136,7 @@ export default function AdminDashboard() {
               <p className="text-2xl font-bold text-gray-900">{stats.totalEmployees}</p>
             </div>
             <div className="bg-indigo-100 rounded-full p-3">
-              <span className="text-2xl">👥</span>
+              <Users className="h-6 w-6 text-indigo-600" />
             </div>
           </div>
         </div>
@@ -136,7 +148,7 @@ export default function AdminDashboard() {
               <p className="text-2xl font-bold text-gray-900">{stats.activeTasks}</p>
             </div>
             <div className="bg-blue-100 rounded-full p-3">
-              <span className="text-2xl">✅</span>
+              <Activity className="h-6 w-6 text-blue-600" />
             </div>
           </div>
         </div>
@@ -148,7 +160,7 @@ export default function AdminDashboard() {
               <p className="text-2xl font-bold text-gray-900">{stats.completedTasks}</p>
             </div>
             <div className="bg-green-100 rounded-full p-3">
-              <span className="text-2xl">✓</span>
+              <CheckCircle2 className="h-6 w-6 text-green-600" />
             </div>
           </div>
         </div>
@@ -160,7 +172,7 @@ export default function AdminDashboard() {
               <p className="text-2xl font-bold text-gray-900">{stats.pendingLeaves}</p>
             </div>
             <div className="bg-yellow-100 rounded-full p-3">
-              <span className="text-2xl">📅</span>
+              <CalendarClock className="h-6 w-6 text-yellow-600" />
             </div>
           </div>
         </div>
@@ -176,27 +188,45 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
           <div className="space-y-3">
-            <a
+            <Link
               href="/dashboard/employees"
-              className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+              className="flex items-start gap-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group"
             >
-              <span className="font-medium">Manage Employees</span>
-              <p className="text-sm text-gray-600">View and manage employee profiles</p>
-            </a>
-            <a
+              <div className="bg-indigo-100 rounded-lg p-2 group-hover:bg-indigo-200 transition-colors">
+                <UserCog className="h-5 w-5 text-indigo-600" />
+              </div>
+              <div className="flex-1">
+                <span className="font-medium block mb-1">Manage Employees</span>
+                <p className="text-sm text-gray-600">View and manage employee profiles</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-gray-600 transition-colors" />
+            </Link>
+            <Link
               href="/dashboard/tasks"
-              className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+              className="flex items-start gap-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group"
             >
-              <span className="font-medium">View All Tasks</span>
-              <p className="text-sm text-gray-600">Monitor task progress and assignments</p>
-            </a>
-            <a
+              <div className="bg-blue-100 rounded-lg p-2 group-hover:bg-blue-200 transition-colors">
+                <ListTodo className="h-5 w-5 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <span className="font-medium block mb-1">View All Tasks</span>
+                <p className="text-sm text-gray-600">Monitor task progress and assignments</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-gray-600 transition-colors" />
+            </Link>
+            <Link
               href="/dashboard/leaves"
-              className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+              className="flex items-start gap-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group"
             >
-              <span className="font-medium">Review Leaves</span>
-              <p className="text-sm text-gray-600">Approve or reject leave requests</p>
-            </a>
+              <div className="bg-yellow-100 rounded-lg p-2 group-hover:bg-yellow-200 transition-colors">
+                <FileText className="h-5 w-5 text-yellow-600" />
+              </div>
+              <div className="flex-1">
+                <span className="font-medium block mb-1">Review Leaves</span>
+                <p className="text-sm text-gray-600">Approve or reject leave requests</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-gray-600 transition-colors" />
+            </Link>
           </div>
         </div>
       </div>

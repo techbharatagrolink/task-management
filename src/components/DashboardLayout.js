@@ -145,9 +145,9 @@ export default function DashboardLayout({ children, user }) {
 
             {/* Dropdown Menu */}
             {userMenuOpen && (
-              <div className="absolute right-0 mt-2 w-56 rounded-md border-2 border-border bg-white dark:bg-gray-900 shadow-2xl z-50">
+              <div className="absolute right-0 mt-2 w-56 rounded-md border-2 border-border bg-white shadow-2xl z-50">
                 <div className="p-2">
-                  <div className="px-3 py-2 border-b border-border bg-gray-50 dark:bg-gray-800/50 rounded-t-md">
+                  <div className="px-3 py-2 border-b border-border bg-gray-50 rounded-t-md">
                     <p className="text-sm font-medium text-foreground">{currentUser?.name || 'User'}</p>
                     <p className="text-xs text-muted-foreground truncate">{currentUser?.email || ''}</p>
                     <p className="text-xs text-muted-foreground mt-1">
@@ -156,7 +156,7 @@ export default function DashboardLayout({ children, user }) {
                   </div>
                   <Link
                     href="/dashboard/profile"
-                    className="flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-foreground transition-colors"
+                    className="flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-gray-100 text-foreground transition-colors"
                     onClick={() => setUserMenuOpen(false)}
                   >
                     <User className="h-4 w-4" />
@@ -165,7 +165,7 @@ export default function DashboardLayout({ children, user }) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="w-full justify-start gap-2 mt-1 text-destructive hover:text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20"
+                    className="w-full justify-start gap-2 mt-1 text-destructive hover:text-destructive hover:bg-destructive/10"
                     onClick={handleLogout}
                   >
                     <LogOut className="h-4 w-4" />
@@ -182,7 +182,8 @@ export default function DashboardLayout({ children, user }) {
         {/* Sidebar */}
         <aside
           className={cn(
-            "fixed lg:static inset-y-0 left-0 z-40 w-64 border-r bg-background transform transition-transform duration-200 ease-in-out lg:transition-none",
+            "fixed left-0 z-40 w-64 border-r bg-background transform transition-transform duration-200 ease-in-out",
+            "top-0 h-screen lg:top-16 lg:h-[calc(100vh-4rem)]",
             sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           )}
         >
@@ -221,7 +222,7 @@ export default function DashboardLayout({ children, user }) {
         )}
 
         {/* Main Content */}
-        <main className="flex-1 p-6 lg:p-8">
+        <main className="flex-1 p-6 lg:p-8 lg:ml-64">
           {children}
         </main>
       </div>

@@ -64,3 +64,14 @@ docker-compose.override.yml
 # Logs
 logs
 *.log
+
+AUDIT_REPORT.md
+COMPLETE_FIXES_REPORT.md
+DEPLOYMENT_FILES_SUMMARY.md
+DEPLOYMENT.md
+DOCKPLOY_SETUP.md
+FIXES_APPLIED.md
+README_DEPLOYMENT.md
+database/
+hashpwd.js
+scripts/

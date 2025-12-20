@@ -302,7 +302,7 @@ export default function TasksPage() {
 
       {/* Create Task Dialog */}
       <Dialog open={showCreateModal} onOpenChange={handleClose}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-900 border-2 shadow-2xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white border-2 shadow-2xl">
           <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-lg">
@@ -326,7 +326,7 @@ export default function TasksPage() {
             )}
 
             {/* Basic Information */}
-            <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border">
+            <div className="space-y-4 p-4 bg-gray-50 rounded-lg border">
               <div className="flex items-center gap-2 pb-2">
                 <CheckSquare className="h-5 w-5 text-primary" />
                 <h3 className="text-lg font-semibold text-foreground">Task Information</h3>
@@ -453,7 +453,7 @@ export default function TasksPage() {
             </div>
 
             {/* Subtasks Section */}
-            <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border">
+            <div className="space-y-4 p-4 bg-gray-50 rounded-lg border">
               <div className="flex items-center justify-between pb-2">
                 <div className="flex items-center gap-2">
                   <ListChecks className="h-5 w-5 text-primary" />
@@ -539,7 +539,7 @@ export default function TasksPage() {
               )}
             </div>
 
-            <DialogFooter className="gap-2 sm:gap-0 pt-4 border-t bg-gray-50 dark:bg-gray-800/50 -mx-6 -mb-6 px-6 pb-6 mt-6">
+            <DialogFooter className="gap-2 sm:gap-0 pt-4 border-t bg-gray-50 -mx-6 -mb-6 px-6 pb-6 mt-6">
               <Button
                 type="button"
                 variant="outline"

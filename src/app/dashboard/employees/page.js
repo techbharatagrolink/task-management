@@ -205,8 +205,8 @@ export default function EmployeesPage() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Employees</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <h1 className="text-3xl font-bold text-gray-900">Employees</h1>
+          <p className="text-sm text-gray-500 mt-1">
             Manage your team members and their information
           </p>
         </div>
@@ -291,7 +291,7 @@ export default function EmployeesPage() {
 
       {/* Create Employee Dialog */}
       <Dialog open={showCreateModal} onOpenChange={handleClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-900 border-2 shadow-2xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white border-2 shadow-2xl">
           <DialogHeader className="pb-4 border-b">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-lg">
@@ -308,23 +308,23 @@ export default function EmployeesPage() {
 
           <form onSubmit={handleCreate} className="space-y-6 pt-4">
             {error && (
-              <Alert variant="destructive" className="bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800">
+              <Alert variant="destructive" className="bg-red-50 border-red-200">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="font-medium">{error}</AlertDescription>
               </Alert>
             )}
 
             {success && (
-              <Alert className="border-green-500 bg-green-50 dark:bg-green-950/30 border-2">
-                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-                <AlertDescription className="text-green-800 dark:text-green-200 font-medium">
+              <Alert className="border-green-500 bg-green-50 border-2">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-800 font-medium">
                   Employee created successfully!
                 </AlertDescription>
               </Alert>
             )}
 
             {/* Personal Information Section */}
-            <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border">
+            <div className="space-y-4 p-4 bg-gray-50 rounded-lg border">
               <div className="flex items-center gap-2 pb-2">
                 <User className="h-5 w-5 text-primary" />
                 <h3 className="text-lg font-semibold text-foreground">Personal Information</h3>
@@ -421,7 +421,7 @@ export default function EmployeesPage() {
             </div>
 
             {/* Professional Information Section */}
-            <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border">
+            <div className="space-y-4 p-4 bg-gray-50 rounded-lg border">
               <div className="flex items-center gap-2 pb-2">
                 <Briefcase className="h-5 w-5 text-primary" />
                 <h3 className="text-lg font-semibold text-foreground">Professional Information</h3>
@@ -525,7 +525,7 @@ export default function EmployeesPage() {
               </div>
             </div>
 
-            <DialogFooter className="gap-2 sm:gap-0 pt-4 border-t bg-gray-50 dark:bg-gray-800/50 -mx-6 -mb-6 px-6 pb-6 mt-6">
+            <DialogFooter className="gap-2 sm:gap-0 pt-4 border-t bg-gray-50 -mx-6 -mb-6 px-6 pb-6 mt-6">
               <Button
                 type="button"
                 variant="outline"
