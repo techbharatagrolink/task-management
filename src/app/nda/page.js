@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { authenticatedFetch } from '@/lib/auth-client';
 
 export default function NDAPage() {
   const [loading, setLoading] = useState(false);
@@ -14,7 +15,7 @@ export default function NDAPage() {
 
   const checkAuth = async () => {
     try {
-      const res = await fetch('/api/auth/check');
+      const res = await authenticatedFetch('/api/auth/check');
       const data = await res.json();
       
       if (!data.authenticated) {
@@ -52,7 +53,7 @@ export default function NDAPage() {
     setError('');
 
     try {
-      const res = await fetch('/api/nda/accept', {
+      const res = await authenticatedFetch('/api/nda/accept', {
         method: 'POST',
       });
 
@@ -65,7 +66,7 @@ export default function NDAPage() {
       }
 
       // Get user role and redirect
-      const authRes = await fetch('/api/auth/check');
+      const authRes = await authenticatedFetch('/api/auth/check');
       const authData = await authRes.json();
       
       if (authData.authenticated) {
@@ -153,7 +154,7 @@ export default function NDAPage() {
           <button
             onClick={handleAccept}
             disabled={loading}
-            className="bg-indigo-600 text-white py-3 px-8 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            className="bg-indigo-600 text-white py-3 px-8 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 transition-colors font-medium"
           >
             {loading ? 'Processing...' : 'I Agree'}
           </button>

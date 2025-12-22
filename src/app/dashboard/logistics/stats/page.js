@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart3, Package, TrendingUp } from 'lucide-react';
 import AccessDenied from '@/components/AccessDenied';
 import { hasRoleAccess } from '@/lib/roleCheck';
+import { authenticatedFetch } from '@/lib/auth-client';
 
 export default function LogisticsStatsPage() {
   const [stats, setStats] = useState(null);
@@ -18,7 +19,7 @@ export default function LogisticsStatsPage() {
 
   const fetchUser = async () => {
     try {
-      const res = await fetch('/api/auth/check');
+      const res = await authenticatedFetch('/api/auth/check');
       const data = await res.json();
       if (data.authenticated) {
         setUser(data.user);
@@ -26,15 +27,18 @@ export default function LogisticsStatsPage() {
           setLoading(false);
           return;
         }
+      } else {
+        setLoading(false);
       }
     } catch (err) {
       console.error('Failed to fetch user:', err);
+      setLoading(false);
     }
   };
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('/api/logistics/stats');
+      const res = await authenticatedFetch('/api/logistics/stats');
       const data = await res.json();
       
       if (res.ok) {

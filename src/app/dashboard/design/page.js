@@ -6,6 +6,7 @@ import { Video, Instagram, TrendingUp } from 'lucide-react';
 import AccessDenied from '@/components/AccessDenied';
 import { hasRoleAccess } from '@/lib/roleCheck';
 
+import { authenticatedFetch } from '@/lib/auth-client';
 export default function DesignDashboard() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,7 +22,7 @@ export default function DesignDashboard() {
 
   const fetchUser = async () => {
     try {
-      const res = await fetch('/api/auth/check');
+      const res = await authenticatedFetch('/api/auth/check');
       const data = await res.json();
       if (data.authenticated) {
         setUser(data.user);

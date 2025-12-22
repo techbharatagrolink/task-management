@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+import { authenticatedFetch } from '@/lib/auth-client';
 export default function TasksPage() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,7 +64,7 @@ export default function TasksPage() {
 
   const fetchTasks = async () => {
     try {
-      const res = await fetch('/api/tasks');
+      const res = await authenticatedFetch('/api/tasks');
       const data = await res.json();
       setTasks(data.tasks || []);
     } catch (err) {
@@ -75,7 +76,7 @@ export default function TasksPage() {
 
   const fetchEmployees = async () => {
     try {
-      const res = await fetch('/api/employees');
+      const res = await authenticatedFetch('/api/employees');
       const data = await res.json();
       setEmployees(data.employees || []);
     } catch (err) {
@@ -89,7 +90,7 @@ export default function TasksPage() {
     setSubmitting(true);
     
     try {
-      const res = await fetch('/api/tasks', {
+      const res = await authenticatedFetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),

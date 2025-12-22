@@ -25,13 +25,9 @@ export async function POST(request) {
       );
     }
 
-    // Create response
-    const response = NextResponse.json({ success: true });
-    
-    // Clear cookie on the response object (required for Next.js App Router)
-    response.cookies.delete('token');
-
-    return response;
+    // Return success - client will clear token from localStorage
+    // No need to clear cookies since we're using token-based auth now
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Logout error:', error);
     return NextResponse.json(

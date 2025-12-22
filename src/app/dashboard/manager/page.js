@@ -6,6 +6,7 @@ import { Users, CheckSquare, BarChart3, Target } from 'lucide-react';
 import AccessDenied from '@/components/AccessDenied';
 import { hasRoleAccess } from '@/lib/roleCheck';
 
+import { authenticatedFetch } from '@/lib/auth-client';
 export default function ManagerDashboard() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -22,7 +23,7 @@ export default function ManagerDashboard() {
 
   const fetchUser = async () => {
     try {
-      const res = await fetch('/api/auth/check');
+      const res = await authenticatedFetch('/api/auth/check');
       const data = await res.json();
       if (data.authenticated) {
         setUser(data.user);
@@ -41,7 +42,7 @@ export default function ManagerDashboard() {
   const fetchStats = async () => {
     try {
       const [taskRes] = await Promise.all([
-        fetch('/api/tasks')
+        authenticatedFetch('/api/tasks')
       ]);
       
       const taskData = await taskRes.json();

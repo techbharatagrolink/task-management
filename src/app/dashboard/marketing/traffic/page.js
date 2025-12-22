@@ -6,6 +6,7 @@ import { Globe, TrendingUp, Users, Eye } from 'lucide-react';
 import AccessDenied from '@/components/AccessDenied';
 import { hasRoleAccess } from '@/lib/roleCheck';
 
+import { authenticatedFetch } from '@/lib/auth-client';
 export default function TrafficPage() {
   const [traffic, setTraffic] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -18,7 +19,7 @@ export default function TrafficPage() {
 
   const fetchUser = async () => {
     try {
-      const res = await fetch('/api/auth/check');
+      const res = await authenticatedFetch('/api/auth/check');
       const data = await res.json();
       if (data.authenticated) {
         setUser(data.user);
@@ -34,7 +35,7 @@ export default function TrafficPage() {
 
   const fetchTraffic = async () => {
     try {
-      const res = await fetch('/api/marketing/traffic');
+      const res = await authenticatedFetch('/api/marketing/traffic');
       const data = await res.json();
       
       if (res.ok) {

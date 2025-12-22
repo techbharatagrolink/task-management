@@ -11,6 +11,7 @@ import { Loader } from '@/components/ui/loader';
 import { Building2, Mail, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { setAuthToken } from '@/lib/auth-client';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -30,7 +31,10 @@ export default function LoginPage() {
 
   const checkAuth = async () => {
     try {
-      const res = await fetch('/api/auth/check');
+      const { getAuthHeaders } = await import('@/lib/auth-client');
+      const res = await fetch('/api/auth/check', {
+        headers: getAuthHeaders()
+      });
       const data = await res.json();
       
       if (data.authenticated) {
@@ -75,7 +79,6 @@ export default function LoginPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password }),
-        credentials: 'include', // Important for cookies to be sent/received
       });
 
       const data = await res.json();
@@ -98,24 +101,35 @@ export default function LoginPage() {
         return;
       }
 
+      // Store token in localStorage
+      if (data.token) {
+        const tokenStored = setAuthToken(data.token);
+        if (!tokenStored) {
+          toast({
+            variant: 'destructive',
+            title: 'Warning',
+            description: 'Failed to store authentication token. Please try again.',
+          });
+          setLoading(false);
+          return;
+        }
+        console.log('[LOGIN CLIENT] Token stored successfully');
+      } else {
+        console.error('[LOGIN CLIENT] No token in response');
+        toast({
+          variant: 'destructive',
+          title: 'Login Error',
+          description: 'Authentication token not received. Please try again.',
+        });
+        setLoading(false);
+        return;
+      }
+
       // Success - show success toast
       toast({
         title: 'Login Successful',
         description: `Welcome back, ${data.user.name || data.user.email}!`,
       });
-
-      // Debug: Check if cookie is present in response
-      // Note: httpOnly cookies won't be accessible via document.cookie in browser
-      // but we can verify the response headers in dev tools
-      console.log('[LOGIN CLIENT] Login successful, response status:', res.status);
-      console.log('[LOGIN CLIENT] Response headers:', {
-        contentType: res.headers.get('content-type'),
-        setCookie: res.headers.get('set-cookie') || 'Not visible in client (httpOnly)'
-      });
-      
-      // Important: httpOnly cookies are not accessible via JavaScript
-      // The cookie should be automatically sent by the browser on subsequent requests
-      // Wait a moment to ensure cookie is processed by browser before redirect
       
       // Check NDA status
       if (!data.ndaAccepted) {
@@ -123,10 +137,8 @@ export default function LoginPage() {
         router.push('/nda');
       } else {
         setLoading(false);
-        // Small delay to ensure cookie is set and processed by browser before redirect
-        setTimeout(() => {
-          redirectToDashboard(data.user.role);
-        }, 200);
+        // Redirect immediately - no need to wait for cookies
+        redirectToDashboard(data.user.role);
       }
     } catch (err) {
       const errorMessage = 'Network error. Please check your connection and try again.';
@@ -248,7 +260,7 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
-                className="w-full h-11 text-base font-semibold cursor-pointer"
+                className="w-full h-11 text-base font-semibold"
                 disabled={loading || !email || !password}
               >
                 {loading ? (

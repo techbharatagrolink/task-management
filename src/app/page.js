@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { authenticatedFetch } from '@/lib/auth-client';
 
 export default function Home() {
   const router = useRouter();
@@ -10,7 +11,7 @@ export default function Home() {
     // Check if user is already logged in
     const checkAuth = async () => {
       try {
-        const res = await fetch('/api/auth/check');
+        const res = await authenticatedFetch('/api/auth/check');
         const data = await res.json();
         
         if (data.authenticated) {

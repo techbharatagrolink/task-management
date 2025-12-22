@@ -8,6 +8,7 @@ import DeadlineTimer from '@/components/DeadlineTimer';
 import { CheckSquare, ListChecks, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+import { authenticatedFetch } from '@/lib/auth-client';
 export default function DeveloperDashboard() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +21,7 @@ export default function DeveloperDashboard() {
   const fetchData = async () => {
     try {
       // Fetch assigned tasks
-      const taskRes = await fetch('/api/tasks');
+      const taskRes = await authenticatedFetch('/api/tasks');
       const taskData = await taskRes.json();
       setTasks(taskData.tasks || []);
 

@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import DeadlineTimer from '@/components/DeadlineTimer';
+import { authenticatedFetch } from '@/lib/auth-client';
 import { 
   CheckSquare, 
   Clock, 
@@ -62,12 +63,12 @@ export default function AdminDashboard() {
   const fetchDashboardData = async () => {
     try {
       // Fetch employees
-      const empRes = await fetch('/api/employees');
+      const empRes = await authenticatedFetch('/api/employees');
       const empData = await empRes.json();
       const totalEmployees = empData.employees?.length || 0;
 
       // Fetch tasks
-      const taskRes = await fetch('/api/tasks');
+      const taskRes = await authenticatedFetch('/api/tasks');
       const taskData = await taskRes.json();
       const allTasks = taskData.tasks || [];
       setTasks(allTasks);
@@ -77,7 +78,7 @@ export default function AdminDashboard() {
       const cancelledTasks = allTasks.filter(t => t.status === 'cancelled').length;
 
       // Fetch leaves
-      const leaveRes = await fetch('/api/leaves?status=pending');
+      const leaveRes = await authenticatedFetch('/api/leaves?status=pending');
       const leaveData = await leaveRes.json();
       const pendingLeaves = leaveData.leaves?.length || 0;
 

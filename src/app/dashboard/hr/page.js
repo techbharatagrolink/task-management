@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, CheckSquare, Calendar, BarChart3 } from 'lucide-react';
 import AccessDenied from '@/components/AccessDenied';
 import { hasRoleAccess } from '@/lib/roleCheck';
-
+import { authenticatedFetch } from '@/lib/auth-client';
 export default function HRDashboard() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -22,7 +22,7 @@ export default function HRDashboard() {
 
   const fetchUser = async () => {
     try {
-      const res = await fetch('/api/auth/check');
+      const res = await authenticatedFetch('/api/auth/check');
       const data = await res.json();
       if (data.authenticated) {
         setUser(data.user);
@@ -30,10 +30,11 @@ export default function HRDashboard() {
           setLoading(false);
           return;
         }
+      } else {
+        setLoading(false);
       }
     } catch (err) {
       console.error('Failed to fetch user:', err);
-    } finally {
       setLoading(false);
     }
   };
@@ -41,8 +42,8 @@ export default function HRDashboard() {
   const fetchStats = async () => {
     try {
       const [empRes, leaveRes] = await Promise.all([
-        fetch('/api/employees'),
-        fetch('/api/leaves?status=pending')
+        authenticatedFetch('/api/employees'),
+        authenticatedFetch('/api/leaves?status=pending')
       ]);
       
       const empData = await empRes.json();

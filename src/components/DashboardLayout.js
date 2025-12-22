@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getSidebarItemsForRole } from '@/config/sidebarPermissions';
+import { authenticatedFetch, removeAuthToken } from '@/lib/auth-client';
 
 export default function DashboardLayout({ children, user }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -63,24 +64,30 @@ export default function DashboardLayout({ children, user }) {
 
   const fetchUser = async () => {
     try {
-      const res = await fetch('/api/auth/check');
+      const res = await authenticatedFetch('/api/auth/check');
       const data = await res.json();
       if (data.authenticated) {
         setCurrentUser(data.user);
       } else {
+        // Token is invalid or expired, already cleared by authenticatedFetch
         router.push('/login');
       }
     } catch (err) {
       console.error('Failed to fetch user:', err);
+      router.push('/login');
     }
   };
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await authenticatedFetch('/api/auth/logout', { method: 'POST' });
+      // Clear token from localStorage
+      removeAuthToken();
       router.push('/login');
     } catch (err) {
       console.error('Logout failed:', err);
+      // Clear token anyway on error
+      removeAuthToken();
       router.push('/login');
     }
   };

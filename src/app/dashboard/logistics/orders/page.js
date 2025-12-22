@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import NoData from '@/components/NoData';
 import AccessDenied from '@/components/AccessDenied';
 import { hasRoleAccess } from '@/lib/roleCheck';
+import { authenticatedFetch } from '@/lib/auth-client';
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState([]);
@@ -20,7 +21,7 @@ export default function OrdersPage() {
 
   const fetchUser = async () => {
     try {
-      const res = await fetch('/api/auth/check');
+      const res = await authenticatedFetch('/api/auth/check');
       const data = await res.json();
       if (data.authenticated) {
         setUser(data.user);
@@ -28,15 +29,18 @@ export default function OrdersPage() {
           setLoading(false);
           return;
         }
+      } else {
+        setLoading(false);
       }
     } catch (err) {
       console.error('Failed to fetch user:', err);
+      setLoading(false);
     }
   };
 
   const fetchOrders = async () => {
     try {
-      const res = await fetch('/api/logistics/orders');
+      const res = await authenticatedFetch('/api/logistics/orders');
       const data = await res.json();
       
       if (res.ok) {

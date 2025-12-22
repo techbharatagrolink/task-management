@@ -6,6 +6,7 @@ import { Target, Megaphone, Globe, TrendingUp } from 'lucide-react';
 import AccessDenied from '@/components/AccessDenied';
 import { hasRoleAccess } from '@/lib/roleCheck';
 
+import { authenticatedFetch } from '@/lib/auth-client';
 export default function MarketingDashboard() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -22,7 +23,7 @@ export default function MarketingDashboard() {
 
   const fetchUser = async () => {
     try {
-      const res = await fetch('/api/auth/check');
+      const res = await authenticatedFetch('/api/auth/check');
       const data = await res.json();
       if (data.authenticated) {
         setUser(data.user);

@@ -7,6 +7,7 @@ import NoData from '@/components/NoData';
 import AccessDenied from '@/components/AccessDenied';
 import { hasRoleAccess } from '@/lib/roleCheck';
 
+import { authenticatedFetch } from '@/lib/auth-client';
 export default function TeamPage() {
   const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,7 +20,7 @@ export default function TeamPage() {
 
   const fetchUser = async () => {
     try {
-      const res = await fetch('/api/auth/check');
+      const res = await authenticatedFetch('/api/auth/check');
       const data = await res.json();
       if (data.authenticated) {
         setUser(data.user);
@@ -35,7 +36,7 @@ export default function TeamPage() {
 
   const fetchTeam = async () => {
     try {
-      const res = await fetch('/api/employees');
+      const res = await authenticatedFetch('/api/employees');
       const data = await res.json();
       
       if (res.ok) {

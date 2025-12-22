@@ -9,6 +9,7 @@ import { User, Mail, Briefcase, Building2, Calendar } from 'lucide-react';
 import NoData from '@/components/NoData';
 import AccessDenied from '@/components/AccessDenied';
 
+import { authenticatedFetch } from '@/lib/auth-client';
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -20,7 +21,7 @@ export default function ProfilePage() {
 
   const fetchProfile = async () => {
     try {
-      const res = await fetch('/api/auth/check');
+      const res = await authenticatedFetch('/api/auth/check');
       const data = await res.json();
       
       if (data.authenticated) {

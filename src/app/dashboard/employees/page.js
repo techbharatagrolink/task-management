@@ -40,6 +40,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+import { authenticatedFetch } from '@/lib/auth-client';
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +67,7 @@ export default function EmployeesPage() {
 
   const fetchEmployees = async () => {
     try {
-      const res = await fetch('/api/employees');
+      const res = await authenticatedFetch('/api/employees');
       const data = await res.json();
       if (data.employees) {
         setEmployees(data.employees);
@@ -117,7 +118,7 @@ export default function EmployeesPage() {
     
     setSubmitting(true);
     try {
-      const res = await fetch('/api/employees', {
+      const res = await authenticatedFetch('/api/employees', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),

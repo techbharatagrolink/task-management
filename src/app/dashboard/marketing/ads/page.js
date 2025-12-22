@@ -8,6 +8,7 @@ import NoData from '@/components/NoData';
 import AccessDenied from '@/components/AccessDenied';
 import { hasRoleAccess } from '@/lib/roleCheck';
 
+import { authenticatedFetch } from '@/lib/auth-client';
 export default function AdsPage() {
   const [ads, setAds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +21,7 @@ export default function AdsPage() {
 
   const fetchUser = async () => {
     try {
-      const res = await fetch('/api/auth/check');
+      const res = await authenticatedFetch('/api/auth/check');
       const data = await res.json();
       if (data.authenticated) {
         setUser(data.user);
@@ -36,7 +37,7 @@ export default function AdsPage() {
 
   const fetchAds = async () => {
     try {
-      const res = await fetch('/api/marketing/ads');
+      const res = await authenticatedFetch('/api/marketing/ads');
       const data = await res.json();
       
       if (res.ok) {

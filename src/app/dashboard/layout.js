@@ -1,32 +1,10 @@
 import DashboardLayout from '../../components/DashboardLayout';
-import { cookies } from 'next/headers';
 
+// Server-side layout - user authentication will be checked client-side in DashboardLayout
+// This allows the page to load and handle auth checks with token from localStorage
 export default async function DashboardLayoutWrapper({ children }) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('token')?.value;
-
-  let user = null;
-  if (token) {
-    try {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      const res = await fetch(`${baseUrl}/api/auth/check`, {
-        headers: {
-          Cookie: `token=${token}`,
-        },
-      });
-      const data = await res.json();
-      if (data.authenticated) {
-        user = data.user;
-      }
-    } catch (err) {
-      console.error('Failed to fetch user in layout:', err);
-    }
-  }
-
-  if (!user) {
-    return null; // Will redirect via middleware
-  }
-
-  return <DashboardLayout user={user}>{children}</DashboardLayout>;
+  // Return layout without user - DashboardLayout will fetch user client-side with token
+  // This is necessary because we can't access localStorage on the server
+  return <DashboardLayout user={null}>{children}</DashboardLayout>;
 }
 

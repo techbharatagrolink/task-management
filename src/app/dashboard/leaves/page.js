@@ -7,6 +7,7 @@ import { Calendar, Plus, Clock, CheckCircle2, XCircle, AlertCircle } from 'lucid
 import NoData from '@/components/NoData';
 import AccessDenied from '@/components/AccessDenied';
 
+import { authenticatedFetch } from '@/lib/auth-client';
 export default function LeavesPage() {
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +21,7 @@ export default function LeavesPage() {
 
   const fetchUser = async () => {
     try {
-      const res = await fetch('/api/auth/check');
+      const res = await authenticatedFetch('/api/auth/check');
       const data = await res.json();
       if (data.authenticated) {
         setUser(data.user);
@@ -32,7 +33,7 @@ export default function LeavesPage() {
 
   const fetchLeaves = async () => {
     try {
-      const res = await fetch('/api/leaves');
+      const res = await authenticatedFetch('/api/leaves');
       const data = await res.json();
       
       if (res.ok) {

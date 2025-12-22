@@ -6,6 +6,7 @@ import { Clock, Calendar, CheckCircle2, XCircle } from 'lucide-react';
 import NoData from '@/components/NoData';
 import AccessDenied from '@/components/AccessDenied';
 
+import { authenticatedFetch } from '@/lib/auth-client';
 export default function AttendancePage() {
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,7 +20,7 @@ export default function AttendancePage() {
 
   const fetchUser = async () => {
     try {
-      const res = await fetch('/api/auth/check');
+      const res = await authenticatedFetch('/api/auth/check');
       const data = await res.json();
       if (data.authenticated) {
         setUser(data.user);
@@ -31,7 +32,7 @@ export default function AttendancePage() {
 
   const fetchAttendance = async () => {
     try {
-      const res = await fetch('/api/attendance');
+      const res = await authenticatedFetch('/api/attendance');
       const data = await res.json();
       
       if (res.ok) {

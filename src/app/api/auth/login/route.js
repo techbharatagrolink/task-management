@@ -127,10 +127,17 @@ export async function POST(request) {
       ndaAccepted = false;
     }
 
-    // SECURITY FIX: Don't return token in response (it's in httpOnly cookie)
-    // Create response with JSON data
-    const response = NextResponse.json({
+    // Return token in response body for client-side storage (localStorage)
+    // This is more reliable than cookies for SPAs and works better with custom domains
+    console.log('[LOGIN] Success - Login successful for user:', {
+      userId: user.id,
+      email: user.email,
+      tokenLength: token.length
+    });
+
+    return NextResponse.json({
       success: true,
+      token: token, // Return token in response body
       user: {
         id: user.id,
         name: user.name,
@@ -141,111 +148,6 @@ export async function POST(request) {
       },
       ndaAccepted
     });
-
-    // Set cookie on the response object (required for Next.js App Router)
-    // CRITICAL FIX for Vercel with custom domains: Cookie configuration must be precise
-    const isProduction = process.env.NODE_ENV === 'production';
-    const isVercel = process.env.VERCEL === '1';
-    
-    // Extract domain from request URL for custom domains
-    const requestUrl = new URL(request.url);
-    const requestHost = requestUrl.hostname;
-    
-    // Cookie settings optimized for Vercel and custom domains
-    const cookieOptions = {
-      httpOnly: true,
-      secure: true, // Always true on Vercel (HTTPS required) - browsers reject secure cookies on HTTP
-      sameSite: 'lax', // 'lax' works for same-site requests
-      maxAge: 86400, // 24 hours in seconds
-      path: '/', // Available across all routes
-    };
-    
-    // For custom domains: Optionally set domain if COOKIE_DOMAIN env var is set
-    // Otherwise, let browser use the current domain (recommended for most cases)
-    // Only set domain if explicitly configured (e.g., for subdomain sharing: ".yourdomain.com")
-    if (process.env.COOKIE_DOMAIN) {
-      cookieOptions.domain = process.env.COOKIE_DOMAIN;
-      console.log('[LOGIN] Using custom cookie domain from env:', process.env.COOKIE_DOMAIN);
-    }
-    // For custom domains, you typically don't need to set domain - browser handles it automatically
-    // Setting domain is only needed if you want cookies to work across subdomains (e.g., .example.com)
-
-    try {
-      // Set the cookie using Next.js cookies API
-      response.cookies.set('token', token, cookieOptions);
-      
-      // Additional: Try to manually append Set-Cookie header as backup
-      // This ensures the cookie is definitely in the response headers
-      const existingCookies = response.headers.getSetCookie();
-      console.log('[LOGIN] Existing Set-Cookie headers:', existingCookies);
-      
-      // Build cookie string for verification
-      const cookieStringParts = [
-        `token=${token}`,
-        `Path=${cookieOptions.path}`,
-        `Max-Age=${cookieOptions.maxAge}`,
-        cookieOptions.httpOnly ? 'HttpOnly' : '',
-        cookieOptions.secure ? 'Secure' : '',
-        `SameSite=${cookieOptions.sameSite}`
-      ].filter(Boolean);
-      
-      console.log('[LOGIN] Cookie configuration:', {
-        userId: user.id,
-        email: user.email,
-        production: isProduction,
-        vercel: isVercel,
-        requestHost: requestHost,
-        requestUrl: requestUrl.origin,
-        cookieOptions: {
-          httpOnly: cookieOptions.httpOnly,
-          secure: cookieOptions.secure,
-          sameSite: cookieOptions.sameSite,
-          path: cookieOptions.path,
-          maxAge: cookieOptions.maxAge,
-          domain: cookieOptions.domain || 'NOT_SET (browser will use: ' + requestHost + ')'
-        },
-        expectedCookieString: cookieStringParts.join('; '),
-        setCookieHeaders: existingCookies,
-        tokenLength: token.length
-      });
-      
-      // Verify cookie was added to headers
-      // Note: getSetCookie() returns an array of cookie strings
-      const allCookies = response.headers.getSetCookie();
-      const tokenCookieExists = allCookies && allCookies.length > 0 && allCookies.some(cookie => cookie.includes('token='));
-      
-      if (!tokenCookieExists) {
-        console.error('[LOGIN] WARNING - Token cookie not found in Set-Cookie headers!');
-        console.error('[LOGIN] Available Set-Cookie headers:', allCookies);
-        console.error('[LOGIN] All response headers:', Object.fromEntries(response.headers.entries()));
-      } else {
-        console.log('[LOGIN] Cookie successfully added to Set-Cookie headers');
-        // Log the actual cookie string that will be sent (first 100 chars of token for security)
-        const tokenCookieHeader = allCookies.find(cookie => cookie.includes('token='));
-        if (tokenCookieHeader) {
-          console.log('[LOGIN] Set-Cookie header value (first 150 chars):', tokenCookieHeader.substring(0, 150) + '...');
-        }
-      }
-      
-      console.log('[LOGIN] Success - Cookie set for user:', {
-        userId: user.id,
-        email: user.email,
-        cookieSet: tokenCookieExists
-      });
-    } catch (cookieError) {
-      console.error('[LOGIN] Cookie setting error:', {
-        error: cookieError.message,
-        stack: cookieError.stack,
-        userId: user.id
-      });
-      // Return error if cookie cannot be set
-      return NextResponse.json(
-        { error: 'Failed to set authentication cookie. Please try again.', details: process.env.NODE_ENV === 'development' ? cookieError.message : undefined },
-        { status: 500 }
-      );
-    }
-
-    return response;
   } catch (error) {
     console.error('[LOGIN] Unexpected error:', {
       error: error.message,

@@ -58,6 +58,7 @@ async function getUserById(userId) {
 
 // Middleware to verify authentication
 // Accepts either a token string or a request object
+// Prioritizes Authorization header over cookies for better reliability
 async function verifyAuth(tokenOrRequest) {
   let token = null;
   
@@ -65,17 +66,25 @@ async function verifyAuth(tokenOrRequest) {
   if (typeof tokenOrRequest === 'string') {
     token = tokenOrRequest;
   } else {
-    // Otherwise, it's a request object - extract token from cookies
-    try {
-      const cookieStore = await cookies();
-      token = cookieStore.get('token')?.value;
-    } catch (e) {
-      // If cookies() fails (e.g., not in API route context), try to read from request object (fallback)
-      const request = tokenOrRequest;
-      token = request?.cookies?.get?.('token')?.value || 
-              request?.cookies?.token || 
-              request?.headers?.get?.('authorization')?.replace('Bearer ', '') ||
-              request?.headers?.authorization?.replace('Bearer ', '');
+    // Otherwise, it's a request object - extract token from Authorization header first
+    const request = tokenOrRequest;
+    
+    // Priority 1: Authorization header (Bearer token) - most reliable
+    const authHeader = request?.headers?.get?.('authorization') || request?.headers?.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7).trim();
+    }
+    
+    // Priority 2: Fallback to cookies (for backward compatibility during transition)
+    if (!token) {
+      try {
+        const cookieStore = await cookies();
+        token = cookieStore.get('token')?.value;
+      } catch (e) {
+        // If cookies() fails, try reading from request object directly
+        token = request?.cookies?.get?.('token')?.value || 
+                request?.cookies?.token;
+      }
     }
   }
   

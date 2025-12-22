@@ -2,13 +2,14 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { authenticatedFetch } from '@/lib/auth-client';
 
 export default function DashboardRedirect() {
   const router = useRouter();
 
   useEffect(() => {
     // Get user role and redirect to appropriate dashboard
-    fetch('/api/auth/check')
+    authenticatedFetch('/api/auth/check')
       .then(res => res.json())
       .then(data => {
         if (data.authenticated) {

@@ -1,9 +1,10 @@
 // Next.js middleware for authentication
+// Note: Middleware runs on the edge and cannot access Authorization headers from client-side requests
+// Authentication is now handled via Authorization headers in API routes and client-side checks
 import { NextResponse } from 'next/server';
-import { verifyToken } from './src/lib/token.js';
 
 export function middleware(request) {
-  // Skip middleware for API routes (they handle auth themselves)
+  // Skip middleware for API routes (they handle auth themselves via Authorization headers)
   if (request.nextUrl.pathname.startsWith('/api')) {
     return NextResponse.next();
   }
@@ -13,23 +14,9 @@ export function middleware(request) {
     return NextResponse.next();
   }
 
-  // Check for token in cookies
-  const token = request.cookies.get('token')?.value;
-
-  if (!token) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
-  // CRITICAL FIX: Verify token validity in middleware
-  const decoded = verifyToken(token);
-  if (!decoded) {
-    // Invalid token - clear cookie and redirect
-    const response = NextResponse.redirect(new URL('/login', request.url));
-    response.cookies.delete('token');
-    return response;
-  }
-
-  // Token is valid, allow access
+  // For page routes, let them load and handle authentication client-side
+  // API routes will handle authentication via Authorization headers
+  // This approach is more reliable than cookie-based auth for SPAs
   return NextResponse.next();
 }
 
