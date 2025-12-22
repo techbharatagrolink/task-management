@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader } from '@/components/ui/loader';
 import { Building2, Mail, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -20,6 +21,7 @@ export default function LoginPage() {
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     // Check if already logged in
@@ -73,15 +75,34 @@ export default function LoginPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password }),
+        credentials: 'include', // Important for cookies to be sent/received
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || 'Login failed');
+        const errorMessage = data.error || 'Login failed';
+        const errorDetails = data.details || '';
+        
+        // Set error state for inline display
+        setError(errorMessage);
+        
+        // Show toast notification with details
+        toast({
+          variant: 'destructive',
+          title: 'Login Failed',
+          description: errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage,
+        });
+        
         setLoading(false);
         return;
       }
+
+      // Success - show success toast
+      toast({
+        title: 'Login Successful',
+        description: `Welcome back, ${data.user.name || data.user.email}!`,
+      });
 
       // Check NDA status
       if (!data.ndaAccepted) {
@@ -95,7 +116,17 @@ export default function LoginPage() {
         }, 100);
       }
     } catch (err) {
-      setError('Network error. Please try again.');
+      const errorMessage = 'Network error. Please check your connection and try again.';
+      setError(errorMessage);
+      
+      // Show toast for network errors
+      toast({
+        variant: 'destructive',
+        title: 'Connection Error',
+        description: err.message || errorMessage,
+      });
+      
+      console.error('Login network error:', err);
       setLoading(false);
     }
   };
