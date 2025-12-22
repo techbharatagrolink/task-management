@@ -75,3 +75,4 @@ README_DEPLOYMENT.md
 database/
 hashpwd.js
 scripts/
+*.sql

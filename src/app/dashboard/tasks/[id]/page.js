@@ -1,0 +1,564 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import DeadlineTimer from '@/components/DeadlineTimer';
+import {
+  CheckSquare,
+  ArrowLeft,
+  Calendar,
+  Users,
+  AlertCircle,
+  MessageSquare,
+  ListChecks,
+  Loader2,
+  Send,
+  Clock,
+  User,
+  CheckCircle2,
+  Circle
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { authenticatedFetch } from '@/lib/auth-client';
+
+export default function TaskDetailsPage() {
+  const params = useParams();
+  const router = useRouter();
+  const taskId = params.id;
+  
+  const [task, setTask] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [newComment, setNewComment] = useState('');
+  const [updatingSubtask, setUpdatingSubtask] = useState(null);
+
+  useEffect(() => {
+    if (taskId) {
+      fetchTaskDetails();
+    }
+  }, [taskId]);
+
+  const fetchTaskDetails = async () => {
+    try {
+      setLoading(true);
+      const res = await authenticatedFetch(`/api/tasks/${taskId}`);
+      const data = await res.json();
+      
+      if (res.ok) {
+        setTask(data.task);
+      } else {
+        setError(data.error || 'Failed to load task details');
+      }
+    } catch (err) {
+      console.error('Failed to fetch task details:', err);
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubtaskToggle = async (subtask) => {
+    if (updatingSubtask === subtask.id) return;
+    
+    setUpdatingSubtask(subtask.id);
+    try {
+      const newStatus = subtask.status === 'completed' ? 'pending' : 'completed';
+      const newProgress = newStatus === 'completed' ? 100 : 0;
+      
+      const res = await authenticatedFetch(`/api/tasks/${taskId}/subtasks`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subtask_id: subtask.id,
+          status: newStatus,
+          progress: newProgress
+        })
+      });
+
+      if (res.ok) {
+        // Refresh task details to get updated progress
+        await fetchTaskDetails();
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Failed to update subtask');
+      }
+    } catch (err) {
+      console.error('Failed to update subtask:', err);
+      setError('Network error. Please try again.');
+    } finally {
+      setUpdatingSubtask(null);
+    }
+  };
+
+  const handleAddComment = async (e) => {
+    e.preventDefault();
+    if (!newComment.trim() || submittingComment) return;
+
+    setSubmittingComment(true);
+    try {
+      const res = await authenticatedFetch(`/api/tasks/${taskId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comment: newComment.trim() })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setNewComment('');
+        // Refresh task details to get updated comments
+        await fetchTaskDetails();
+      } else {
+        setError(data.error || 'Failed to add comment');
+      }
+    } catch (err) {
+      console.error('Failed to add comment:', err);
+      setError('Network error. Please try again.');
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  const getPriorityColor = (priority) => {
+    const colors = {
+      low: 'bg-gray-100 text-gray-800',
+      medium: 'bg-blue-100 text-blue-800',
+      high: 'bg-orange-100 text-orange-800',
+      critical: 'bg-red-100 text-red-800'
+    };
+    return colors[priority] || colors.medium;
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      pending: 'bg-yellow-100 text-yellow-800',
+      in_progress: 'bg-blue-100 text-blue-800',
+      completed: 'bg-green-100 text-green-800',
+      cancelled: 'bg-red-100 text-red-800'
+    };
+    return colors[status] || colors.pending;
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading task details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !task) {
+    return (
+      <div className="space-y-6">
+        <Button variant="outline" onClick={() => router.back()} className="gap-2">
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Button>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (!task) {
+    return (
+      <div className="space-y-6">
+        <Button variant="outline" onClick={() => router.back()} className="gap-2">
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Button>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-12">
+              <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">Task not found</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const completedSubtasks = task.subtasks?.filter(st => st.status === 'completed').length || 0;
+  const totalSubtasks = task.subtasks?.length || 0;
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" onClick={() => router.back()} className="gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <CheckSquare className="h-8 w-8" />
+              Task Details
+            </h1>
+            <p className="text-muted-foreground mt-1">View and manage task information</p>
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Task Information */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <CardTitle className="text-2xl mb-2">{task.title}</CardTitle>
+                  {task.description && (
+                    <CardDescription className="text-base mt-2 whitespace-pre-wrap">
+                      {task.description}
+                    </CardDescription>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge className={getPriorityColor(task.priority)}>
+                    {task.priority}
+                  </Badge>
+                  <Badge className={getStatusColor(task.status)}>
+                    {task.status.replace('_', ' ')}
+                  </Badge>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Task Details Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center gap-3">
+                  <Calendar className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Deadline</p>
+                    <p className="font-medium">
+                      {task.deadline ? formatDate(task.deadline) : 'No deadline'}
+                    </p>
+                    {task.deadline && (
+                      <div className="mt-1">
+                        <DeadlineTimer deadline={task.deadline} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <Users className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Assigned To</p>
+                    <p className="font-medium">
+                      {task.assigned_user_names || 'Unassigned'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <Clock className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Created At</p>
+                    <p className="font-medium">{formatDate(task.created_at)}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <CheckSquare className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Progress</p>
+                    <p className="font-medium">{task.progress || 0}%</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Overall Progress</span>
+                  <span className="font-medium">{task.progress || 0}%</span>
+                </div>
+                <div className="w-full bg-secondary rounded-full h-3">
+                  <div
+                    className="bg-primary h-3 rounded-full transition-all"
+                    style={{ width: `${task.progress || 0}%` }}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Subtasks Checklist */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ListChecks className="h-5 w-5 text-primary" />
+                  <CardTitle>Subtasks</CardTitle>
+                </div>
+                {totalSubtasks > 0 && (
+                  <Badge variant="secondary">
+                    {completedSubtasks} / {totalSubtasks} completed
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {!task.subtasks || task.subtasks.length === 0 ? (
+                <div className="text-center py-8">
+                  <ListChecks className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No subtasks for this task</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {task.subtasks.map((subtask) => {
+                    const isCompleted = subtask.status === 'completed';
+                    const isUpdating = updatingSubtask === subtask.id;
+                    
+                    return (
+                      <div
+                        key={subtask.id}
+                        className={cn(
+                          "flex items-start gap-3 p-4 rounded-lg border transition-colors",
+                          isCompleted && "bg-green-50 border-green-200",
+                          !isCompleted && "bg-background hover:bg-accent"
+                        )}
+                      >
+                        <button
+                          onClick={() => handleSubtaskToggle(subtask)}
+                          disabled={isUpdating}
+                          className={cn(
+                            "mt-0.5 flex-shrink-0 transition-all",
+                            isUpdating && "opacity-50 cursor-not-allowed"
+                          )}
+                        >
+                          {isUpdating ? (
+                            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                          ) : isCompleted ? (
+                            <CheckCircle2 className="h-5 w-5 text-green-600" />
+                          ) : (
+                            <Circle className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <p
+                            className={cn(
+                              "font-medium",
+                              isCompleted && "line-through text-muted-foreground"
+                            )}
+                          >
+                            {subtask.title}
+                          </p>
+                          {subtask.description && (
+                            <p
+                              className={cn(
+                                "text-sm mt-1",
+                                isCompleted ? "text-muted-foreground" : "text-muted-foreground"
+                              )}
+                            >
+                              {subtask.description}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-4 mt-2">
+                            <Badge
+                              variant={isCompleted ? 'success' : 'outline'}
+                              className="text-xs"
+                            >
+                              {subtask.status.replace('_', ' ')}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {subtask.progress || 0}% complete
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Comments Section */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-primary" />
+                <CardTitle>Comments</CardTitle>
+              </div>
+              <CardDescription>
+                {task.comments?.length || 0} comment{(task.comments?.length || 0) !== 1 ? 's' : ''}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Add Comment Form */}
+              <form onSubmit={handleAddComment} className="space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="comment">Add a comment</Label>
+                  <div className="flex gap-2">
+                    <textarea
+                      id="comment"
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Write a comment..."
+                      disabled={submittingComment}
+                      className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+                      rows="4"
+                    />
+                    <Button
+                      type="submit"
+                      disabled={!newComment.trim() || submittingComment}
+                      size="icon"
+                      className="h-[100px]"
+                    >
+                      {submittingComment ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </form>
+
+              <Separator />
+
+              {/* Comments List */}
+              <div className="space-y-4">
+                {!task.comments || task.comments.length === 0 ? (
+                  <div className="text-center py-8">
+                    <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No comments yet. Be the first to comment!</p>
+                  </div>
+                ) : (
+                  task.comments.map((comment) => (
+                    <div key={comment.id} className="space-y-2">
+                      <div className="flex items-start gap-3 p-4 rounded-lg border bg-background">
+                        <div className="flex-shrink-0">
+                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <User className="h-5 w-5 text-primary" />
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-medium text-sm">{comment.user_name}</p>
+                            <Badge variant="outline" className="text-xs">
+                              {comment.user_role}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground ml-auto">
+                              {formatDate(comment.created_at)}
+                            </span>
+                          </div>
+                          <p className="text-sm whitespace-pre-wrap">{comment.comment}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Quick Info Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Quick Info</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Task ID</p>
+                <p className="font-mono text-sm">#{task.id}</p>
+              </div>
+              <Separator />
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Status</p>
+                <Badge className={getStatusColor(task.status)}>
+                  {task.status.replace('_', ' ')}
+                </Badge>
+              </div>
+              <Separator />
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Priority</p>
+                <Badge className={getPriorityColor(task.priority)}>
+                  {task.priority}
+                </Badge>
+              </div>
+              <Separator />
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Last Updated</p>
+                <p className="text-sm font-medium">{formatDate(task.updated_at)}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Statistics Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Statistics</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Subtasks</p>
+                <p className="text-2xl font-bold">
+                  {completedSubtasks} / {totalSubtasks}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {totalSubtasks > 0 ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0}% completed
+                </p>
+              </div>
+              <Separator />
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Comments</p>
+                <p className="text-2xl font-bold">{task.comments?.length || 0}</p>
+              </div>
+              {task.reports && task.reports.length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Reports</p>
+                    <p className="text-2xl font-bold">{task.reports.length}</p>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+

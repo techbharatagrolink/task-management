@@ -16,7 +16,7 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { id } = params; // task_id
+    const { id } = await params; // task_id
     const body = await request.json();
     const { user_id, rating, feedback } = body;
 
