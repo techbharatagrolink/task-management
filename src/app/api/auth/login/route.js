@@ -143,21 +143,32 @@ export async function POST(request) {
     });
 
     // Set cookie on the response object (required for Next.js App Router)
-    // CRITICAL FIX for Vercel: Cookie configuration must be precise
+    // CRITICAL FIX for Vercel with custom domains: Cookie configuration must be precise
     const isProduction = process.env.NODE_ENV === 'production';
     const isVercel = process.env.VERCEL === '1';
     
-    // Cookie settings optimized for Vercel
-    // IMPORTANT: Do NOT set domain attribute - let browser/Vercel handle it
-    // Setting domain manually can prevent cookies from being set in browsers
+    // Extract domain from request URL for custom domains
+    const requestUrl = new URL(request.url);
+    const requestHost = requestUrl.hostname;
+    
+    // Cookie settings optimized for Vercel and custom domains
     const cookieOptions = {
       httpOnly: true,
       secure: true, // Always true on Vercel (HTTPS required) - browsers reject secure cookies on HTTP
-      sameSite: 'lax', // 'lax' works for same-site requests (login is same-site)
+      sameSite: 'lax', // 'lax' works for same-site requests
       maxAge: 86400, // 24 hours in seconds
       path: '/', // Available across all routes
-      // Explicitly DO NOT set domain - browser will use current domain
     };
+    
+    // For custom domains: Optionally set domain if COOKIE_DOMAIN env var is set
+    // Otherwise, let browser use the current domain (recommended for most cases)
+    // Only set domain if explicitly configured (e.g., for subdomain sharing: ".yourdomain.com")
+    if (process.env.COOKIE_DOMAIN) {
+      cookieOptions.domain = process.env.COOKIE_DOMAIN;
+      console.log('[LOGIN] Using custom cookie domain from env:', process.env.COOKIE_DOMAIN);
+    }
+    // For custom domains, you typically don't need to set domain - browser handles it automatically
+    // Setting domain is only needed if you want cookies to work across subdomains (e.g., .example.com)
 
     try {
       // Set the cookie using Next.js cookies API
@@ -183,13 +194,15 @@ export async function POST(request) {
         email: user.email,
         production: isProduction,
         vercel: isVercel,
+        requestHost: requestHost,
+        requestUrl: requestUrl.origin,
         cookieOptions: {
           httpOnly: cookieOptions.httpOnly,
           secure: cookieOptions.secure,
           sameSite: cookieOptions.sameSite,
           path: cookieOptions.path,
           maxAge: cookieOptions.maxAge,
-          domain: 'NOT_SET (browser default)'
+          domain: cookieOptions.domain || 'NOT_SET (browser will use: ' + requestHost + ')'
         },
         expectedCookieString: cookieStringParts.join('; '),
         setCookieHeaders: existingCookies,
