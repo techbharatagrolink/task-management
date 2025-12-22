@@ -104,16 +104,29 @@ export default function LoginPage() {
         description: `Welcome back, ${data.user.name || data.user.email}!`,
       });
 
+      // Debug: Check if cookie is present in response
+      // Note: httpOnly cookies won't be accessible via document.cookie in browser
+      // but we can verify the response headers in dev tools
+      console.log('[LOGIN CLIENT] Login successful, response status:', res.status);
+      console.log('[LOGIN CLIENT] Response headers:', {
+        contentType: res.headers.get('content-type'),
+        setCookie: res.headers.get('set-cookie') || 'Not visible in client (httpOnly)'
+      });
+      
+      // Important: httpOnly cookies are not accessible via JavaScript
+      // The cookie should be automatically sent by the browser on subsequent requests
+      // Wait a moment to ensure cookie is processed by browser before redirect
+      
       // Check NDA status
       if (!data.ndaAccepted) {
         setLoading(false);
         router.push('/nda');
       } else {
         setLoading(false);
-        // Small delay to ensure cookie is set before redirect
+        // Small delay to ensure cookie is set and processed by browser before redirect
         setTimeout(() => {
           redirectToDashboard(data.user.role);
-        }, 100);
+        }, 200);
       }
     } catch (err) {
       const errorMessage = 'Network error. Please check your connection and try again.';

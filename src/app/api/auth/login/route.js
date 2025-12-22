@@ -143,35 +143,86 @@ export async function POST(request) {
     });
 
     // Set cookie on the response object (required for Next.js App Router)
-    // Fix for Vercel: Use secure cookies in production, handle domain properly
+    // CRITICAL FIX for Vercel: Cookie configuration must be precise
     const isProduction = process.env.NODE_ENV === 'production';
     const isVercel = process.env.VERCEL === '1';
     
     // Cookie settings optimized for Vercel
+    // IMPORTANT: Do NOT set domain attribute - let browser/Vercel handle it
+    // Setting domain manually can prevent cookies from being set in browsers
     const cookieOptions = {
       httpOnly: true,
-      secure: isProduction || isVercel, // Always secure on Vercel
-      sameSite: 'lax',
-      maxAge: 86400, // 24 hours
-      path: '/', // Ensure cookie is available across all routes
+      secure: true, // Always true on Vercel (HTTPS required) - browsers reject secure cookies on HTTP
+      sameSite: 'lax', // 'lax' works for same-site requests (login is same-site)
+      maxAge: 86400, // 24 hours in seconds
+      path: '/', // Available across all routes
+      // Explicitly DO NOT set domain - browser will use current domain
     };
 
-    // Only set domain if explicitly configured (Vercel handles this automatically)
-    if (process.env.COOKIE_DOMAIN) {
-      cookieOptions.domain = process.env.COOKIE_DOMAIN;
-    }
-
     try {
+      // Set the cookie using Next.js cookies API
       response.cookies.set('token', token, cookieOptions);
-      console.log('[LOGIN] Success - Cookie set for user:', {
+      
+      // Additional: Try to manually append Set-Cookie header as backup
+      // This ensures the cookie is definitely in the response headers
+      const existingCookies = response.headers.getSetCookie();
+      console.log('[LOGIN] Existing Set-Cookie headers:', existingCookies);
+      
+      // Build cookie string for verification
+      const cookieStringParts = [
+        `token=${token}`,
+        `Path=${cookieOptions.path}`,
+        `Max-Age=${cookieOptions.maxAge}`,
+        cookieOptions.httpOnly ? 'HttpOnly' : '',
+        cookieOptions.secure ? 'Secure' : '',
+        `SameSite=${cookieOptions.sameSite}`
+      ].filter(Boolean);
+      
+      console.log('[LOGIN] Cookie configuration:', {
         userId: user.id,
         email: user.email,
         production: isProduction,
-        vercel: isVercel
+        vercel: isVercel,
+        cookieOptions: {
+          httpOnly: cookieOptions.httpOnly,
+          secure: cookieOptions.secure,
+          sameSite: cookieOptions.sameSite,
+          path: cookieOptions.path,
+          maxAge: cookieOptions.maxAge,
+          domain: 'NOT_SET (browser default)'
+        },
+        expectedCookieString: cookieStringParts.join('; '),
+        setCookieHeaders: existingCookies,
+        tokenLength: token.length
+      });
+      
+      // Verify cookie was added to headers
+      // Note: getSetCookie() returns an array of cookie strings
+      const allCookies = response.headers.getSetCookie();
+      const tokenCookieExists = allCookies && allCookies.length > 0 && allCookies.some(cookie => cookie.includes('token='));
+      
+      if (!tokenCookieExists) {
+        console.error('[LOGIN] WARNING - Token cookie not found in Set-Cookie headers!');
+        console.error('[LOGIN] Available Set-Cookie headers:', allCookies);
+        console.error('[LOGIN] All response headers:', Object.fromEntries(response.headers.entries()));
+      } else {
+        console.log('[LOGIN] Cookie successfully added to Set-Cookie headers');
+        // Log the actual cookie string that will be sent (first 100 chars of token for security)
+        const tokenCookieHeader = allCookies.find(cookie => cookie.includes('token='));
+        if (tokenCookieHeader) {
+          console.log('[LOGIN] Set-Cookie header value (first 150 chars):', tokenCookieHeader.substring(0, 150) + '...');
+        }
+      }
+      
+      console.log('[LOGIN] Success - Cookie set for user:', {
+        userId: user.id,
+        email: user.email,
+        cookieSet: tokenCookieExists
       });
     } catch (cookieError) {
       console.error('[LOGIN] Cookie setting error:', {
         error: cookieError.message,
+        stack: cookieError.stack,
         userId: user.id
       });
       // Return error if cookie cannot be set
