@@ -4,18 +4,24 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+// import Link from 'next/link';
 import DeadlineTimer from '@/components/DeadlineTimer';
-import { CheckSquare, ListChecks, Clock } from 'lucide-react';
+import { CheckSquare, ListChecks, Clock, TrendingUp, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import KPICard from '@/components/ui/kpi-card';
 
 import { authenticatedFetch } from '@/lib/auth-client';
 export default function DeveloperDashboard() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [attendance, setAttendance] = useState(null);
+  const [kpiMetrics, setKpiMetrics] = useState([]);
+  const [kpiDefinitions, setKpiDefinitions] = useState([]);
 
   useEffect(() => {
     fetchData();
+    fetchPersonalKPIs();
   }, []);
 
   const fetchData = async () => {
@@ -37,6 +43,46 @@ export default function DeveloperDashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchPersonalKPIs = async () => {
+    try {
+      // Get current user ID
+      const userRes = await authenticatedFetch('/api/auth/check');
+      const userData = await userRes.json();
+      const userId = userData.user?.id;
+
+      if (!userId) return;
+
+      const today = new Date();
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+
+      const params = new URLSearchParams({
+        period_type: 'monthly',
+        start_date: startOfMonth,
+        end_date: endOfMonth,
+        user_id: userId.toString(),
+        limit: '3'
+      });
+
+      const [kpiDefRes, kpiMetricsRes] = await Promise.all([
+        authenticatedFetch('/api/kpi/definitions'),
+        authenticatedFetch(`/api/kpi/metrics?${params.toString()}`)
+      ]);
+
+      const kpiDefData = await kpiDefRes.json();
+      const kpiMetricsData = await kpiMetricsRes.json();
+
+      setKpiDefinitions(kpiDefData.definitions || []);
+      setKpiMetrics(kpiMetricsData.metrics || []);
+    } catch (err) {
+      console.error('Failed to fetch personal KPIs:', err);
+    }
+  };
+
+  const getLatestMetricForKPI = (kpiId) => {
+    return kpiMetrics.find(m => m.kpi_id === kpiId) || null;
   };
 
   const getPriorityColor = (priority) => {
@@ -92,6 +138,35 @@ export default function DeveloperDashboard() {
           </p>
         </div>
       </div>
+
+      {/* Personal KPIs */}
+      {kpiMetrics.length > 0 && (
+        <div className="space-y-4 mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-blue-600" />
+              <h2 className="text-xl font-semibold">My Performance Indicators</h2>
+            </div>
+            <Link href="/dashboard/kpi-kri">
+              <Button variant="outline" size="sm">
+                View All
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {kpiDefinitions
+              .filter(kpi => kpi.is_active)
+              .slice(0, 3)
+              .map(kpi => {
+                const metric = getLatestMetricForKPI(kpi.id);
+                return metric ? (
+                  <KPICard key={kpi.id} kpi={kpi} metric={metric} />
+                ) : null;
+              })}
+          </div>
+        </div>
+      )}
 
       {/* My Tasks */}
       <Card>

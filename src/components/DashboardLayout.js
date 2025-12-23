@@ -117,7 +117,7 @@ export default function DashboardLayout({ children, user }) {
           <Link href="/dashboard" className="flex items-center gap-2 mr-4 hover:opacity-80 transition-opacity">
             <Building2 className="h-6 w-6 text-primary" />
             <h1 className="text-lg font-semibold hidden sm:inline-block">
-              Inhouse Management
+              BharatAgrolink Management System
             </h1>
             <span className="text-lg font-semibold sm:hidden">IM</span>
           </Link>

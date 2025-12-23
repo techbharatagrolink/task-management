@@ -14,6 +14,7 @@ import {
   Globe,
   Video,
   Instagram,
+  TrendingUp,
 } from 'lucide-react';
 
 // Define all available sidebar items
@@ -66,12 +67,18 @@ export const sidebarItems = {
     href: '/dashboard/team',
     roles: ['Super Admin', 'Admin', 'Manager'],
   },
-  reports: {
-    name: 'Reports',
-    icon: BarChart3,
-    href: '/dashboard/reports',
-    roles: ['Super Admin', 'Admin', 'HR', 'Manager'],
+  kpiKri: {
+    name: 'KPI & KRI',
+    icon: TrendingUp,
+    href: '/dashboard/kpi-kri',
+    roles: ['Super Admin', 'Admin', 'Manager', 'HR'],
   },
+  // reports: {
+  //   name: 'Reports',
+  //   icon: BarChart3,
+  //   href: '/dashboard/reports',
+  //   roles: ['Super Admin', 'Admin', 'HR', 'Manager'],
+  // },
   orders: {
     name: 'Orders',
     icon: Package,

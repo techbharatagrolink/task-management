@@ -2,9 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, CheckSquare, BarChart3, Target } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import { Users, CheckSquare, BarChart3, Target, TrendingUp, AlertTriangle, ArrowRight } from 'lucide-react';
 import AccessDenied from '@/components/AccessDenied';
 import { hasRoleAccess } from '@/lib/roleCheck';
+import KPICard from '@/components/ui/kpi-card';
+import KRIAlert from '@/components/ui/kri-alert';
 
 import { authenticatedFetch } from '@/lib/auth-client';
 export default function ManagerDashboard() {
@@ -15,10 +19,15 @@ export default function ManagerDashboard() {
     activeTasks: 0,
     completedTasks: 0
   });
+  const [kpiMetrics, setKpiMetrics] = useState([]);
+  const [kriMetrics, setKriMetrics] = useState([]);
+  const [kpiDefinitions, setKpiDefinitions] = useState([]);
+  const [kriDefinitions, setKriDefinitions] = useState([]);
 
   useEffect(() => {
     fetchUser();
     fetchStats();
+    fetchKPIMetrics();
   }, []);
 
   const fetchUser = async () => {
@@ -56,6 +65,54 @@ export default function ManagerDashboard() {
     } catch (err) {
       console.error('Failed to fetch stats:', err);
     }
+  };
+
+  const fetchKPIMetrics = async () => {
+    try {
+      const today = new Date();
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+
+      // Get user's department for team-level metrics
+      const userRes = await authenticatedFetch('/api/auth/check');
+      const userData = await userRes.json();
+      const department = userData.user?.department;
+
+      const params = new URLSearchParams({
+        period_type: 'monthly',
+        start_date: startOfMonth,
+        end_date: endOfMonth,
+        limit: '5',
+        ...(department && { department: department })
+      });
+
+      const [kpiDefRes, kriDefRes, kpiMetricsRes, kriMetricsRes] = await Promise.all([
+        authenticatedFetch('/api/kpi/definitions'),
+        authenticatedFetch('/api/kri/definitions'),
+        authenticatedFetch(`/api/kpi/metrics?${params.toString()}`),
+        authenticatedFetch(`/api/kri/metrics?${params.toString()}`)
+      ]);
+
+      const kpiDefData = await kpiDefRes.json();
+      const kriDefData = await kriDefRes.json();
+      const kpiMetricsData = await kpiMetricsRes.json();
+      const kriMetricsData = await kriMetricsRes.json();
+
+      setKpiDefinitions(kpiDefData.definitions || []);
+      setKriDefinitions(kriDefData.definitions || []);
+      setKpiMetrics(kpiMetricsData.metrics || []);
+      setKriMetrics(kriMetricsData.metrics || []);
+    } catch (err) {
+      console.error('Failed to fetch KPI/KRI metrics:', err);
+    }
+  };
+
+  const getLatestMetricForKPI = (kpiId) => {
+    return kpiMetrics.find(m => m.kpi_id === kpiId) || null;
+  };
+
+  const getLatestMetricForKRI = (kriId) => {
+    return kriMetrics.find(m => m.kri_id === kriId) || null;
   };
 
   if (loading) {
@@ -108,6 +165,67 @@ export default function ManagerDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Team KPI/KRI Summary */}
+      {(kpiMetrics.length > 0 || kriMetrics.length > 0) && (
+        <div className="space-y-4">
+          {kriMetrics.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-orange-600" />
+                  <h2 className="text-xl font-semibold">Team Risk Indicators</h2>
+                </div>
+                <Link href="/dashboard/kpi-kri">
+                  <Button variant="outline" size="sm">
+                    View All
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </Link>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {kriDefinitions
+                  .filter(kri => kri.is_active)
+                  .slice(0, 4)
+                  .map(kri => {
+                    const metric = getLatestMetricForKRI(kri.id);
+                    return metric ? (
+                      <KRIAlert key={kri.id} kri={kri} metric={metric} />
+                    ) : null;
+                  })}
+              </div>
+            </div>
+          )}
+
+          {kpiMetrics.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-blue-600" />
+                  <h2 className="text-xl font-semibold">Team Performance Indicators</h2>
+                </div>
+                <Link href="/dashboard/kpi-kri">
+                  <Button variant="outline" size="sm">
+                    View All
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </Link>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {kpiDefinitions
+                  .filter(kpi => kpi.is_active)
+                  .slice(0, 3)
+                  .map(kpi => {
+                    const metric = getLatestMetricForKPI(kpi.id);
+                    return metric ? (
+                      <KPICard key={kpi.id} kpi={kpi} metric={metric} />
+                    ) : null;
+                  })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <Card>
         <CardHeader>

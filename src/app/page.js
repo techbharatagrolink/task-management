@@ -67,7 +67,7 @@ export default function Home() {
               />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Inhouse Management System</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">BharatAgrolink Management System</h1>
           <p className="text-gray-600">Internal Work & Performance Monitoring</p>
         </div>
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>

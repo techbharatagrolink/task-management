@@ -11,7 +11,7 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     // Check permissions
     const canView = hasPermission(user.role, ['Super Admin', 'Admin', 'HR', 'Manager']) ||
@@ -60,7 +60,7 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
 
     // Check permissions
@@ -87,63 +87,63 @@ export async function PUT(request, { params }) {
 
     // Build update query dynamically
     const updates = [];
-    const params = [];
+    const queryParams = [];
 
     if (name !== undefined) {
       updates.push('name = ?');
-      params.push(name);
+      queryParams.push(name);
     }
     if (email !== undefined) {
       updates.push('email = ?');
-      params.push(email);
+      queryParams.push(email);
     }
     if (password !== undefined && password !== '') {
       const hashedPassword = await hashPassword(password);
       updates.push('password = ?');
-      params.push(hashedPassword);
+      queryParams.push(hashedPassword);
     }
     if (role !== undefined && hasPermission(user.role, ['Super Admin', 'Admin'])) {
       updates.push('role = ?');
-      params.push(role);
+      queryParams.push(role);
     }
     if (department !== undefined) {
       updates.push('department = ?');
-      params.push(department);
+      queryParams.push(department);
     }
     if (designation !== undefined) {
       updates.push('designation = ?');
-      params.push(designation);
+      queryParams.push(designation);
     }
     if (profile_photo !== undefined) {
       updates.push('profile_photo = ?');
-      params.push(profile_photo);
+      queryParams.push(profile_photo);
     }
     if (joining_date !== undefined) {
       updates.push('joining_date = ?');
-      params.push(joining_date);
+      queryParams.push(joining_date);
     }
     if (salary !== undefined && hasPermission(user.role, ['Super Admin', 'Admin', 'HR'])) {
       updates.push('salary = ?');
-      params.push(salary);
+      queryParams.push(salary);
     }
     if (access_permissions !== undefined && hasPermission(user.role, ['Super Admin', 'Admin'])) {
       updates.push('access_permissions = ?');
-      params.push(JSON.stringify(access_permissions));
+      queryParams.push(JSON.stringify(access_permissions));
     }
     if (is_active !== undefined && hasPermission(user.role, ['Super Admin', 'Admin'])) {
       updates.push('is_active = ?');
-      params.push(is_active);
+      queryParams.push(is_active);
     }
 
     if (updates.length === 0) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
     }
 
-    params.push(id);
+    queryParams.push(id);
 
     await query(
       `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
-      params
+      queryParams
     );
 
     // Log activity
@@ -174,7 +174,7 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     // Soft delete
     await query('UPDATE users SET is_active = 0 WHERE id = ?', [id]);
