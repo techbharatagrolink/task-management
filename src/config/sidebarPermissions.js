@@ -15,6 +15,7 @@ import {
   Video,
   Instagram,
   TrendingUp,
+  FileText,
 } from 'lucide-react';
 
 // Define all available sidebar items
@@ -73,6 +74,12 @@ export const sidebarItems = {
     href: '/dashboard/kpi-kri',
     roles: ['Super Admin', 'Admin', 'Manager', 'HR'],
   },
+  workLogs: {
+    name: 'Daily Work Logs',
+    icon: FileText,
+    href: '/dashboard/work-logs',
+    roles: ['all'], // Available to all roles
+  },
   // reports: {
   //   name: 'Reports',
   //   icon: BarChart3,
@@ -121,6 +128,7 @@ export const sidebarItems = {
     href: '/dashboard/design/instagram',
     roles: ['Super Admin', 'Admin', 'Design & Content Team'],
   },
+  
 };
 
 // Helper function to get role path
