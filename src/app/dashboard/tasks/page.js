@@ -34,7 +34,8 @@ import {
   Users,
   Loader2,
   Clock,
-  ListChecks
+  ListChecks,
+  Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -54,10 +55,15 @@ export default function TasksPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [newSubtask, setNewSubtask] = useState({ title: '', description: '' });
+  const [userRole, setUserRole] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchTasks();
     fetchEmployees();
+    fetchUserRole();
   }, []);
 
   const [employees, setEmployees] = useState([]);
@@ -84,16 +90,74 @@ export default function TasksPage() {
     }
   };
 
+  const fetchUserRole = async () => {
+    try {
+      const res = await authenticatedFetch('/api/auth/check');
+      const data = await res.json();
+      if (data.authenticated && data.user) {
+        setUserRole(data.user.role);
+      }
+    } catch (err) {
+      console.error('Failed to fetch user role:', err);
+    }
+  };
+
+  const isAdmin = userRole === 'Super Admin' || userRole === 'Admin';
+
+  const handleDeleteClick = (task) => {
+    setTaskToDelete(task);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!taskToDelete) return;
+
+    setDeleting(true);
+    try {
+      const res = await authenticatedFetch(`/api/tasks/${taskToDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setDeleteDialogOpen(false);
+        setTaskToDelete(null);
+        fetchTasks(); // Refresh tasks list
+      } else {
+        setError(data.error || 'Failed to delete task');
+      }
+    } catch (err) {
+      console.error('Failed to delete task:', err);
+      setError('Network error. Please try again.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setTaskToDelete(null);
+  };
+
   const handleCreate = async (e) => {
     e.preventDefault();
     setError('');
     setSubmitting(true);
     
     try {
+      // Convert datetime-local to UTC ISO string if deadline is provided
+      const taskData = { ...formData };
+      if (taskData.deadline) {
+        // datetime-local format is YYYY-MM-DDTHH:mm (local time, no timezone)
+        // Convert to UTC ISO string for storage
+        const localDate = new Date(taskData.deadline);
+        taskData.deadline = localDate.toISOString();
+      }
+      
       const res = await authenticatedFetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(taskData),
       });
 
       const data = await res.json();
@@ -217,6 +281,20 @@ export default function TasksPage() {
                     </CardTitle>
                   </Link>
                   <div className="flex items-center gap-2">
+                    {isAdmin && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleDeleteClick(task);
+                        }}
+                        title="Delete task"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Badge variant={task.priority === 'critical' ? 'destructive' : task.priority === 'high' ? 'warning' : 'secondary'}>
                       {task.priority}
                     </Badge>
@@ -234,7 +312,7 @@ export default function TasksPage() {
                     {task.status.replace('_', ' ')}
                   </Badge>
                   {task.deadline && (
-                    <DeadlineTimer deadline={task.deadline} />
+                    <DeadlineTimer deadline={task.deadline} status={task.status} />
                   )}
                 </div>
 
@@ -569,6 +647,57 @@ export default function TasksPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={handleDeleteCancel}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              Delete Task
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this task? This action cannot be undone.
+            </DialogDescription>
+            {taskToDelete && (
+              <div className="mt-4 p-3 bg-muted rounded-md">
+                <div className="font-semibold">{taskToDelete.title}</div>
+                {taskToDelete.description && (
+                  <div className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                    {taskToDelete.description}
+                  </div>
+                )}
+              </div>
+            )}
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleDeleteCancel}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

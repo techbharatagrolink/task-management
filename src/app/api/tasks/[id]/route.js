@@ -128,8 +128,15 @@ export async function PUT(request, { params }) {
       params_arr.push(status);
     }
     if (deadline !== undefined) {
+      // Convert datetime-local to UTC ISO string if needed
+      let deadlineValue = deadline;
+      if (deadline && typeof deadline === 'string' && !deadline.endsWith('Z') && !deadline.includes('+') && !deadline.match(/-\d{2}:\d{2}$/)) {
+        // It's a datetime-local format, convert to UTC ISO string
+        const localDate = new Date(deadline);
+        deadlineValue = localDate.toISOString();
+      }
       updates.push('deadline = ?');
-      params_arr.push(deadline);
+      params_arr.push(deadlineValue);
     }
     if (progress !== undefined) {
       updates.push('progress = ?');
@@ -166,6 +173,54 @@ export async function PUT(request, { params }) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Update task error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// Delete task
+export async function DELETE(request, { params }) {
+  try {
+    const user = await verifyAuth(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    // Check permissions - only Super Admin and Admin can delete tasks
+    const canDelete = hasPermission(user.role, ['Super Admin', 'Admin']);
+
+    if (!canDelete) {
+      return NextResponse.json({ error: 'Forbidden: Only admins can delete tasks' }, { status: 403 });
+    }
+
+    // Check if task exists
+    const tasks = await query('SELECT id FROM tasks WHERE id = ?', [id]);
+    if (tasks.length === 0) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
+
+    // Delete related records first (due to foreign key constraints)
+    await query('DELETE FROM task_assignments WHERE task_id = ?', [id]);
+    await query('DELETE FROM subtasks WHERE task_id = ?', [id]);
+    await query('DELETE FROM task_comments WHERE task_id = ?', [id]);
+    await query('DELETE FROM task_reports WHERE task_id = ?', [id]);
+    
+    // Delete the task
+    await query('DELETE FROM tasks WHERE id = ?', [id]);
+
+    // Log activity
+    await query(
+      'INSERT INTO activity_logs (user_id, action, module, details) VALUES (?, ?, ?, ?)',
+      [user.id, 'delete_task', 'tasks', `Deleted task ID: ${id}`]
+    );
+
+    return NextResponse.json({ success: true, message: 'Task deleted successfully' });
+  } catch (error) {
+    console.error('Delete task error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -93,6 +93,48 @@ body {
   animation: slideIn 0.3s ease-out;
 }
 
+/* Select/Dropdown Fix - Ensure opaque background */
+[data-radix-select-content] {
+  background-color: hsl(var(--popover)) !important;
+  opacity: 1 !important;
+}
+
+/* Dialog/Modal Fix - Ensure opaque background */
+[data-radix-dialog-content] {
+  background-color: hsl(var(--background)) !important;
+  opacity: 1 !important;
+}
+
+/* Popover Fix - Ensure opaque background */
+[data-radix-popover-content] {
+  background-color: hsl(var(--popover)) !important;
+  opacity: 1 !important;
+}
+
+/* Tooltip Fix - Ensure opaque background */
+[data-radix-tooltip-content] {
+  background-color: hsl(var(--popover)) !important;
+  opacity: 1 !important;
+}
+
+/* Hover Card Fix - Ensure opaque background */
+[data-radix-hover-card-content] {
+  background-color: hsl(var(--popover)) !important;
+  opacity: 1 !important;
+}
+
+/* Context Menu Fix - Ensure opaque background */
+[data-radix-context-menu-content] {
+  background-color: hsl(var(--popover)) !important;
+  opacity: 1 !important;
+}
+
+/* Dropdown Menu Fix - Ensure opaque background */
+[data-radix-dropdown-menu-content] {
+  background-color: hsl(var(--popover)) !important;
+  opacity: 1 !important;
+}
+
 /* Utilities */
 .text-truncate {
   overflow: hidden;

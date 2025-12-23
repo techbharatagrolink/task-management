@@ -66,6 +66,7 @@ const SelectContent = React.forwardRef(({ className, children, position = "poppe
         className
       )}
       position={position}
+      style={{ backgroundColor: 'hsl(var(--popover))', opacity: 1 }}
       {...props}
     >
       <SelectScrollUpButton />

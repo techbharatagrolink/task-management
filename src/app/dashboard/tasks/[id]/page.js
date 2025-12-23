@@ -10,6 +10,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import DeadlineTimer from '@/components/DeadlineTimer';
 import {
   CheckSquare,
@@ -24,7 +32,8 @@ import {
   Clock,
   User,
   CheckCircle2,
-  Circle
+  Circle,
+  Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { authenticatedFetch } from '@/lib/auth-client';
@@ -40,10 +49,14 @@ export default function TaskDetailsPage() {
   const [submittingComment, setSubmittingComment] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [updatingSubtask, setUpdatingSubtask] = useState(null);
+  const [userRole, setUserRole] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (taskId) {
       fetchTaskDetails();
+      fetchUserRole();
     }
   }, [taskId]);
 
@@ -147,6 +160,54 @@ export default function TaskDetailsPage() {
     return colors[status] || colors.pending;
   };
 
+  const fetchUserRole = async () => {
+    try {
+      const res = await authenticatedFetch('/api/auth/check');
+      const data = await res.json();
+      if (data.authenticated && data.user) {
+        setUserRole(data.user.role);
+      }
+    } catch (err) {
+      console.error('Failed to fetch user role:', err);
+    }
+  };
+
+  const isAdmin = userRole === 'Super Admin' || userRole === 'Admin';
+
+  const handleDeleteClick = () => {
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!task) return;
+
+    setDeleting(true);
+    try {
+      const res = await authenticatedFetch(`/api/tasks/${task.id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        // Redirect to tasks list after successful deletion
+        router.push('/dashboard/tasks');
+      } else {
+        setError(data.error || 'Failed to delete task');
+        setDeleteDialogOpen(false);
+      }
+    } catch (err) {
+      console.error('Failed to delete task:', err);
+      setError('Network error. Please try again.');
+      setDeleteDialogOpen(false);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
@@ -224,6 +285,16 @@ export default function TaskDetailsPage() {
             <p className="text-muted-foreground mt-1">View and manage task information</p>
           </div>
         </div>
+        {isAdmin && (
+          <Button
+            variant="destructive"
+            onClick={handleDeleteClick}
+            className="gap-2"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete Task
+          </Button>
+        )}
       </div>
 
       {error && (
@@ -269,8 +340,8 @@ export default function TaskDetailsPage() {
                       {task.deadline ? formatDate(task.deadline) : 'No deadline'}
                     </p>
                     {task.deadline && (
-                      <div className="mt-1">
-                        <DeadlineTimer deadline={task.deadline} />
+                      <div className="mt-2">
+                        <DeadlineTimer deadline={task.deadline} status={task.status} />
                       </div>
                     )}
                   </div>
@@ -558,7 +629,64 @@ export default function TaskDetailsPage() {
           </Card>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={handleDeleteCancel}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              Delete Task
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this task? This action cannot be undone.
+            </DialogDescription>
+            {task && (
+              <div className="mt-4 p-3 bg-muted rounded-md">
+                <div className="font-semibold">{task.title}</div>
+                {task.description && (
+                  <div className="text-sm text-muted-foreground mt-1 line-clamp-3">
+                    {task.description}
+                  </div>
+                )}
+                <div className="mt-2 flex gap-2 text-xs text-muted-foreground">
+                  <span>Status: {task.status.replace('_', ' ')}</span>
+                  <span>•</span>
+                  <span>Priority: {task.priority}</span>
+                </div>
+              </div>
+            )}
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleDeleteCancel}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Task
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
 
