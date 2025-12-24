@@ -474,3 +474,4 @@ async function calculateHighAbsenteeism(userId, department, startDate, endDate) 
   return parseFloat((100 - attendanceRate).toFixed(2));
 }
 
+

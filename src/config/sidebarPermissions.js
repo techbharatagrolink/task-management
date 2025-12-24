@@ -74,6 +74,18 @@ export const sidebarItems = {
     href: '/dashboard/kpi-kri',
     roles: ['Super Admin', 'Admin', 'Manager', 'HR'],
   },
+  kra: {
+    name: 'Key Result Areas',
+    icon: Target,
+    href: '/dashboard/kra',
+    roles: ['all'], // Available to all roles
+  },
+  kraScores: {
+    name: 'KRA Scores',
+    icon: TrendingUp,
+    href: '/dashboard/kra/scores',
+    roles: ['Super Admin', 'Admin', 'HR', 'Manager'],
+  },
   workLogs: {
     name: 'Daily Work Logs',
     icon: FileText,
@@ -86,36 +98,36 @@ export const sidebarItems = {
   //   href: '/dashboard/reports',
   //   roles: ['Super Admin', 'Admin', 'HR', 'Manager'],
   // },
-  orders: {
-    name: 'Orders',
-    icon: Package,
-    href: '/dashboard/logistics/orders',
-    roles: ['Super Admin', 'Admin', 'Logistics'],
-  },
-  statistics: {
-    name: 'Statistics',
-    icon: BarChart3,
-    href: '/dashboard/logistics/stats',
-    roles: ['Super Admin', 'Admin', 'Logistics'],
-  },
-  leads: {
-    name: 'Leads',
-    icon: Target,
-    href: '/dashboard/marketing/leads',
-    roles: ['Super Admin', 'Admin', 'Digital Marketing'],
-  },
-  ads: {
-    name: 'Ads',
-    icon: Megaphone,
-    href: '/dashboard/marketing/ads',
-    roles: ['Super Admin', 'Admin', 'Digital Marketing'],
-  },
-  traffic: {
-    name: 'Traffic',
-    icon: Globe,
-    href: '/dashboard/marketing/traffic',
-    roles: ['Super Admin', 'Admin', 'Digital Marketing'],
-  },
+  // orders: {
+  //   name: 'Orders',
+  //   icon: Package,
+  //   href: '/dashboard/logistics/orders',
+  //   roles: ['Super Admin', 'Admin', 'Logistics'],
+  // },
+  // statistics: {
+  //   name: 'Statistics',
+  //   icon: BarChart3,
+  //   href: '/dashboard/logistics/stats',
+  //   roles: ['Super Admin', 'Admin', 'Logistics'],
+  // },
+  // leads: {
+  //   name: 'Leads',
+  //   icon: Target,
+  //   href: '/dashboard/marketing/leads',
+  //   roles: ['Super Admin', 'Admin', 'Digital Marketing'],
+  // },
+  // ads: {
+  //   name: 'Ads',
+  //   icon: Megaphone,
+  //   href: '/dashboard/marketing/ads',
+  //   roles: ['Super Admin', 'Admin', 'Digital Marketing'],
+  // },
+  // traffic: {
+  //   name: 'Traffic',
+  //   icon: Globe,
+  //   href: '/dashboard/marketing/traffic',
+  //   roles: ['Super Admin', 'Admin', 'Digital Marketing'],
+  // },
   youtube: {
     name: 'YouTube',
     icon: Video,

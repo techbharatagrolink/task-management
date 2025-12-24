@@ -191,7 +191,11 @@ export default function EmployeesPage() {
     'App Developer',
     'Digital Marketing',
     'Logistics',
-    'Design & Content Team'
+    'Design & Content Team',
+    'Operations Manager',
+    'Operations Executive',
+    'Operation Specialist',
+    'Operations Intern'
   ];
 
   if (loading) {
