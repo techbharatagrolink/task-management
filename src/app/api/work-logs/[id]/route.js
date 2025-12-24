@@ -36,7 +36,18 @@ export async function GET(request, { params }) {
     }
 
     // Parse JSON field_data
-    log.field_data = typeof log.field_data === 'string' ? JSON.parse(log.field_data) : log.field_data;
+    let fieldData = log.field_data;
+    if (fieldData === null || fieldData === undefined) {
+      fieldData = {};
+    } else if (typeof fieldData === 'string') {
+      try {
+        fieldData = fieldData.trim() === '' ? {} : JSON.parse(fieldData);
+      } catch (parseError) {
+        console.error(`Failed to parse field_data for log ${log.id}:`, parseError);
+        fieldData = {};
+      }
+    }
+    log.field_data = fieldData;
 
     return NextResponse.json({ log });
   } catch (error) {

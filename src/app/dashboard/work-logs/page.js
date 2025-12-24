@@ -75,7 +75,13 @@ export default function WorkLogsPage() {
       const role = user?.role;
       if (!role) return;
 
-      const res = await authenticatedFetch(`/api/work-logs/fields?role=${encodeURIComponent(role)}`);
+      // If user can view all logs, fetch all fields; otherwise fetch only for their role
+      const canViewAll = hasRoleAccess(user?.role, ['Super Admin', 'Admin', 'HR', 'Manager']);
+      const url = canViewAll 
+        ? '/api/work-logs/fields' 
+        : `/api/work-logs/fields?role=${encodeURIComponent(role)}`;
+      
+      const res = await authenticatedFetch(url);
       const data = await res.json();
       setFields(data.fields || []);
     } catch (err) {
@@ -403,15 +409,41 @@ export default function WorkLogsPage() {
                           })}
                         </span>
                         {canViewAll && (
-                          <span className="text-sm text-muted-foreground">
+                          <span className="text-sm text-muted-foreground bg-yellow-200 p-1 rounded-md">
                             by {log.user_name || 'Unknown'}
                           </span>
                         )}
                       </div>
                       <div className="space-y-2 mt-3">
                         {Object.entries(log.field_data || {}).map(([key, value]) => {
-                          const field = fields.find(f => f.field_key === key);
-                          if (!field) return null;
+                          // Match field by both role and field_key to ensure correct field definition
+                          const field = fields.find(f => f.field_key === key && f.role === log.role);
+                          if (!field) {
+                            // Fallback: try to find by field_key only if no role match found
+                            const fallbackField = fields.find(f => f.field_key === key);
+                            if (!fallbackField) return null;
+                            return (
+                              <div key={key} className="text-sm">
+                                <span className="font-medium text-muted-foreground">
+                                  {fallbackField.field_label}:
+                                </span>{' '}
+                                <span className="text-foreground">
+                                  {fallbackField.field_type === 'url' ? (
+                                    <a
+                                      href={value}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 hover:underline"
+                                    >
+                                      {value}
+                                    </a>
+                                  ) : (
+                                    value
+                                  )}
+                                </span>
+                              </div>
+                            );
+                          }
                           return (
                             <div key={key} className="text-sm">
                               <span className="font-medium text-muted-foreground">

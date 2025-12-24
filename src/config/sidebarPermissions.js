@@ -60,7 +60,7 @@ export const sidebarItems = {
     name: 'My Tasks',
     icon: CheckSquare,
     href: '/dashboard/tasks',
-    roles: ['Backend Developer', 'Frontend Developer', 'AI/ML Developer', 'App Developer'],
+    roles: ['Backend Developer', 'Frontend Developer', 'AI/ML Developer', 'App Developer', 'Operations Manager', 'Operations Executive', 'Operation Specialist', 'Operations Intern'],
   },
   team: {
     name: 'Team',

@@ -64,10 +64,26 @@ export async function GET(request) {
     const logs = await query(sql, params);
 
     // Parse JSON field_data for each log
-    const parsedLogs = logs.map(log => ({
-      ...log,
-      field_data: typeof log.field_data === 'string' ? JSON.parse(log.field_data) : log.field_data
-    }));
+    const parsedLogs = logs.map(log => {
+      let fieldData = log.field_data;
+      
+      // Handle field_data parsing
+      if (fieldData === null || fieldData === undefined) {
+        fieldData = {};
+      } else if (typeof fieldData === 'string') {
+        try {
+          fieldData = fieldData.trim() === '' ? {} : JSON.parse(fieldData);
+        } catch (parseError) {
+          console.error(`Failed to parse field_data for log ${log.id}:`, parseError);
+          fieldData = {};
+        }
+      }
+      
+      return {
+        ...log,
+        field_data: fieldData
+      };
+    });
 
     return NextResponse.json({ logs: parsedLogs });
   } catch (error) {
