@@ -91,6 +91,8 @@ export default function LeavesPage() {
   }, [statusFilter]);
 
   const isHR = user && ['HR', 'Super Admin', 'Admin'].includes(user.role);
+  const isManager = user && user.role === 'Manager' && !isHR;
+  const canApprove = isHR || isManager;
 
   const handleSubmitLeave = async (e) => {
     e.preventDefault();
@@ -325,15 +327,17 @@ export default function LeavesPage() {
 
       {filteredLeaves.length === 0 ? (
         <NoData 
-          title={isHR ? "No Leave Requests" : "No Leave Requests"} 
-          description={isHR ? "There are no leave requests to review." : "You haven't submitted any leave requests yet."}
-          actionLabel={!isHR ? "Request Leave" : undefined}
-          onAction={!isHR ? () => setIsDialogOpen(true) : undefined}
+          title={isHR || isManager ? "No Leave Requests" : "No Leave Requests"} 
+          description={isHR || isManager ? "There are no leave requests to review." : "You haven't submitted any leave requests yet."}
+          actionLabel={!(isHR || isManager) ? "Request Leave" : undefined}
+          onAction={!(isHR || isManager) ? () => setIsDialogOpen(true) : undefined}
         />
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>{isHR ? 'All Leave Requests' : 'My Leave Requests'}</CardTitle>
+            <CardTitle>
+              {isHR ? 'All Leave Requests' : isManager ? 'Team Leave Requests' : 'My Leave Requests'}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -345,7 +349,7 @@ export default function LeavesPage() {
                   <div className="flex items-center gap-4 flex-1">
                     <Calendar className="h-5 w-5 text-muted-foreground" />
                     <div className="flex-1">
-                      {isHR && (
+                      {(isHR || isManager) && (
                         <div className="flex items-center gap-2 mb-1">
                           <User className="h-4 w-4 text-muted-foreground" />
                           <span className="text-sm font-medium">{leave.user_name || leave.user_email}</span>
@@ -372,7 +376,7 @@ export default function LeavesPage() {
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(leave.status)}`}>
                       {leave.status}
                     </span>
-                    {isHR && leave.status === 'pending' && (
+                    {canApprove && leave.status === 'pending' && (
                       <div className="flex gap-2 ml-2">
                         <Button
                           size="sm"

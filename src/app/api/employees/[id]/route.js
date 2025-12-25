@@ -24,7 +24,12 @@ export async function GET(request, { params }) {
 
     // SECURITY FIX: Don't select password field
     const employees = await query(
-      'SELECT id, name, email, role, department, designation, profile_photo, joining_date, salary, access_permissions, is_active, created_at, updated_at FROM users WHERE id = ?',
+      `SELECT u.id, u.name, u.email, u.role, u.department, u.designation, u.profile_photo, 
+              u.joining_date, u.salary, u.access_permissions, u.is_active, u.created_at, 
+              u.updated_at, u.manager_id, m.name as manager_name
+       FROM users u
+       LEFT JOIN users m ON u.manager_id = m.id
+       WHERE u.id = ?`,
       [id]
     );
     
@@ -82,7 +87,8 @@ export async function PUT(request, { params }) {
       joining_date,
       salary,
       access_permissions,
-      is_active
+      is_active,
+      manager_id
     } = body;
 
     // Build update query dynamically
@@ -133,6 +139,27 @@ export async function PUT(request, { params }) {
     if (is_active !== undefined && hasPermission(user.role, ['Super Admin', 'Admin'])) {
       updates.push('is_active = ?');
       queryParams.push(is_active);
+    }
+    if (manager_id !== undefined && hasPermission(user.role, ['Super Admin', 'Admin', 'HR'])) {
+      // Validate manager_id if provided
+      if (manager_id !== null && manager_id !== '') {
+        const manager = await query('SELECT id, role FROM users WHERE id = ? AND role = ?', [manager_id, 'Manager']);
+        if (manager.length === 0) {
+          return NextResponse.json(
+            { error: 'Invalid manager ID. Manager must exist and have Manager role' },
+            { status: 400 }
+          );
+        }
+        // Prevent assigning a manager to themselves
+        if (parseInt(manager_id) === parseInt(id)) {
+          return NextResponse.json(
+            { error: 'A user cannot be assigned as their own manager' },
+            { status: 400 }
+          );
+        }
+      }
+      updates.push('manager_id = ?');
+      queryParams.push(manager_id || null);
     }
 
     if (updates.length === 0) {

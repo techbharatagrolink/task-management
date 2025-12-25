@@ -60,7 +60,7 @@ export const sidebarItems = {
     name: 'My Tasks',
     icon: CheckSquare,
     href: '/dashboard/tasks',
-    roles: ['Backend Developer', 'Frontend Developer', 'AI/ML Developer', 'App Developer', 'Operations Manager', 'Operations Executive', 'Operation Specialist', 'Operations Intern'],
+    roles: ['Backend Developer', 'Frontend Developer', 'AI/ML Developer', 'App Developer', 'Operations Manager', 'Operations Executive', 'Operation Specialist', 'Operations Intern', 'Design & Content Team'],
   },
   team: {
     name: 'Team',
@@ -79,6 +79,12 @@ export const sidebarItems = {
     icon: Target,
     href: '/dashboard/kra',
     roles: ['all'], // Available to all roles
+  },
+  manageKra: {
+    name: 'Manage KRA',
+    icon: Target,
+    href: '/dashboard/admin/kra',
+    roles: ['Super Admin', 'Admin'],
   },
   kraScores: {
     name: 'KRA Scores',
@@ -152,6 +158,7 @@ function getRolePath(role) {
   if (role === 'Logistics') return 'logistics';
   if (role === 'Digital Marketing') return 'marketing';
   if (role === 'Design & Content Team') return 'design';
+  if (role?.includes('Operations')) return 'operations';
   return 'dashboard';
 }
 
@@ -171,6 +178,16 @@ export function hasSidebarAccess(userRole, itemRoles) {
   // Check for Developer roles (partial match)
   if (userRole.includes('Developer')) {
     return itemRoles.some(role => role.includes('Developer'));
+  }
+  
+  // Check for Operations roles (partial match)
+  if (userRole.includes('Operations') || userRole.includes('Operation')) {
+    return itemRoles.some(role => role.includes('Operations') || role.includes('Operation'));
+  }
+  
+  // Check for Design & Content Team
+  if (userRole === 'Design & Content Team') {
+    return itemRoles.includes('Design & Content Team');
   }
   
   return false;

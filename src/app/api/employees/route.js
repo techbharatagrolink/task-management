@@ -24,30 +24,38 @@ export async function GET(request) {
     const role = searchParams.get('role');
 
     let sql = `
-      SELECT id, name, email, role, department, designation, profile_photo, 
-             joining_date, salary, is_active, created_at
-      FROM users
-      WHERE role != 'Super Admin'
+      SELECT u.id, u.name, u.email, u.role, u.department, u.designation, u.profile_photo, 
+             u.joining_date, u.salary, u.is_active, u.created_at, u.manager_id,
+             m.name as manager_name
+      FROM users u
+      LEFT JOIN users m ON u.manager_id = m.id
+      WHERE u.role != 'Super Admin'
     `;
     const params = [];
 
     // Filter by department if same department employee
     if (user.role?.includes('Developer') && !hasPermission(user.role, ['Super Admin', 'Admin', 'HR', 'Manager'])) {
-      sql += ' AND department = ?';
+      sql += ' AND u.department = ?';
       params.push(user.department);
+    }
+    
+    // Managers see only their direct team members (employees who report to them)
+    if (user.role === 'Manager' && !hasPermission(user.role, ['Super Admin', 'Admin', 'HR'])) {
+      sql += ' AND u.manager_id = ?';
+      params.push(user.id);
     }
 
     if (department) {
-      sql += ' AND department = ?';
+      sql += ' AND u.department = ?';
       params.push(department);
     }
 
     if (role) {
-      sql += ' AND role = ?';
+      sql += ' AND u.role = ?';
       params.push(role);
     }
 
-    sql += ' ORDER BY created_at DESC';
+    sql += ' ORDER BY u.created_at DESC';
 
     const employees = await query(sql, params);
 
@@ -91,7 +99,8 @@ export async function POST(request) {
       profile_photo,
       joining_date,
       salary,
-      access_permissions
+      access_permissions,
+      manager_id
     } = body;
 
     // Validate required fields
@@ -131,11 +140,22 @@ export async function POST(request) {
     // Hash password
     const hashedPassword = await hashPassword(password);
 
+    // Validate manager_id if provided
+    if (manager_id) {
+      const manager = await query('SELECT id, role FROM users WHERE id = ? AND role = ?', [manager_id, 'Manager']);
+      if (manager.length === 0) {
+        return NextResponse.json(
+          { error: 'Invalid manager ID. Manager must exist and have Manager role' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Insert user
     const result = await query(
       `INSERT INTO users (name, email, password, role, department, designation, 
-        profile_photo, joining_date, salary, access_permissions)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        profile_photo, joining_date, salary, access_permissions, manager_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         name,
         email,
@@ -146,7 +166,8 @@ export async function POST(request) {
         profile_photo || null,
         joining_date || null,
         salary || null,
-        access_permissions ? JSON.stringify(access_permissions) : null
+        access_permissions ? JSON.stringify(access_permissions) : null,
+        manager_id || null
       ]
     );
 

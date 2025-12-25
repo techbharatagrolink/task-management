@@ -56,15 +56,21 @@ export default function TasksPage() {
   const [error, setError] = useState('');
   const [newSubtask, setNewSubtask] = useState({ title: '', description: '' });
   const [userRole, setUserRole] = useState(null);
+  const [userInfo, setUserInfo] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchTasks();
-    fetchEmployees();
     fetchUserRole();
   }, []);
+
+  useEffect(() => {
+    if (userRole) {
+      fetchEmployees();
+    }
+  }, [userRole]);
 
   const [employees, setEmployees] = useState([]);
 
@@ -82,6 +88,8 @@ export default function TasksPage() {
 
   const fetchEmployees = async () => {
     try {
+      // For managers, the API automatically filters to show only their direct team members (manager_id)
+      // For admins, it shows all employees
       const res = await authenticatedFetch('/api/employees');
       const data = await res.json();
       setEmployees(data.employees || []);
@@ -96,6 +104,7 @@ export default function TasksPage() {
       const data = await res.json();
       if (data.authenticated && data.user) {
         setUserRole(data.user.role);
+        setUserInfo(data.user);
       }
     } catch (err) {
       console.error('Failed to fetch user role:', err);

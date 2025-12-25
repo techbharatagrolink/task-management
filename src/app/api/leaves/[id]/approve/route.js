@@ -26,6 +26,24 @@ export async function POST(request, { params }) {
       );
     }
 
+    // For Managers, verify they can only approve leaves from their direct reports (manager_id)
+    if (user.role === 'Manager' && !hasPermission(user.role, ['Super Admin', 'Admin', 'HR'])) {
+      const leaveCheck = await query(
+        `SELECT l.id, u.manager_id 
+         FROM leaves l
+         JOIN users u ON l.user_id = u.id
+         WHERE l.id = ? AND u.manager_id = ?`,
+        [id, user.id]
+      );
+      
+      if (leaveCheck.length === 0) {
+        return NextResponse.json(
+          { error: 'Forbidden: You can only approve leaves from your direct team members' },
+          { status: 403 }
+        );
+      }
+    }
+
     await query(
       `UPDATE leaves 
        SET status = ?, approved_by = ?, approved_at = NOW()

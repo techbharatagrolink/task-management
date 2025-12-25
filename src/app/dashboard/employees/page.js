@@ -53,8 +53,10 @@ export default function EmployeesPage() {
     department: '',
     designation: '',
     joining_date: '',
-    salary: ''
+    salary: '',
+    manager_id: ''
   });
+  const [managers, setManagers] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -63,7 +65,24 @@ export default function EmployeesPage() {
 
   useEffect(() => {
     fetchEmployees();
+    fetchManagers();
   }, []);
+
+  const fetchManagers = async () => {
+    try {
+      // Fetch all employees for the manager dropdown (backend will validate only Managers can be assigned)
+      const res = await authenticatedFetch('/api/employees');
+      const data = await res.json();
+      if (data.employees) {
+        // Filter to show only active employees, excluding Super Admin
+        setManagers(data.employees.filter(emp => 
+          emp.role !== 'Super Admin' && emp.is_active !== 0
+        ));
+      }
+    } catch (err) {
+      console.error('Failed to fetch employees for manager selection:', err);
+    }
+  };
 
   const fetchEmployees = async () => {
     try {
@@ -139,7 +158,8 @@ export default function EmployeesPage() {
             department: '',
             designation: '',
             joining_date: '',
-            salary: ''
+            salary: '',
+            manager_id: ''
           });
           fetchEmployees();
         }, 1500);
@@ -242,6 +262,9 @@ export default function EmployeesPage() {
                 Department
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Manager
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Status
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -272,6 +295,9 @@ export default function EmployeesPage() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {emp.department || '-'}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {emp.manager_name || '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -495,6 +521,29 @@ export default function EmployeesPage() {
                     disabled={submitting}
                     className="h-11"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="manager_id" className="text-sm font-medium">
+                    Manager
+                  </Label>
+                  <Select
+                    value={formData.manager_id || "none"}
+                    onValueChange={(value) => handleFieldChange('manager_id', value === "none" ? '' : value)}
+                    disabled={submitting}
+                  >
+                    <SelectTrigger id="manager_id" className="h-11">
+                      <SelectValue placeholder="Select a manager (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Manager</SelectItem>
+                      {managers.map(employee => (
+                        <SelectItem key={employee.id} value={employee.id.toString()}>
+                          {employee.name} - {employee.role} {employee.department ? `(${employee.department})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">

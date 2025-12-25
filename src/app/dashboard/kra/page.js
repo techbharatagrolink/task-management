@@ -28,6 +28,9 @@ export default function KRAPage() {
   const [kraDefinitions, setKraDefinitions] = useState([]);
   const [userRole, setUserRole] = useState(null);
   const [userInfo, setUserInfo] = useState(null);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [selectedTeamMember, setSelectedTeamMember] = useState(null);
+  const [isManager, setIsManager] = useState(false);
 
   // Form state
   const [periodType, setPeriodType] = useState('monthly');
@@ -46,7 +49,7 @@ export default function KRAPage() {
       fetchKRADefinitions();
       fetchExistingSubmissions();
     }
-  }, [userRole, periodType, periodMonth, periodQuarter, periodYear]);
+  }, [userRole, periodType, periodMonth, periodQuarter, periodYear, selectedTeamMember]);
 
   const fetchUserInfo = async () => {
     try {
@@ -55,16 +58,43 @@ export default function KRAPage() {
       if (data.authenticated && data.user) {
         setUserRole(data.user.role);
         setUserInfo(data.user);
+        const managerCheck = data.user.role === 'Manager' && 
+                           !['Super Admin', 'Admin', 'HR'].includes(data.user.role);
+        setIsManager(managerCheck);
+        
+        // If not a manager, set selectedTeamMember to null
+        if (!managerCheck) {
+          setSelectedTeamMember(null);
+        }
+        
+        // Fetch team members if manager
+        if (managerCheck) {
+          fetchTeamMembers();
+        }
       }
     } catch (err) {
       console.error('Failed to fetch user info:', err);
     }
   };
 
+  const fetchTeamMembers = async () => {
+    try {
+      const res = await authenticatedFetch('/api/employees');
+      const data = await res.json();
+      setTeamMembers(data.employees || []);
+    } catch (err) {
+      console.error('Failed to fetch team members:', err);
+    }
+  };
+
   const fetchKRADefinitions = async () => {
     setLoading(true);
     try {
-      const res = await authenticatedFetch(`/api/kra/definitions?role=${encodeURIComponent(userRole)}`);
+      // For managers viewing team member, use team member's role, otherwise use manager's role
+      const roleToFetch = isManager && selectedTeamMember 
+        ? selectedTeamMember.role 
+        : userRole;
+      const res = await authenticatedFetch(`/api/kra/definitions?role=${encodeURIComponent(roleToFetch)}`);
       const data = await res.json();
       setKraDefinitions(data.definitions || []);
 
@@ -90,6 +120,11 @@ export default function KRAPage() {
         ...(periodType === 'monthly' && { period_month: periodMonth.toString() }),
         ...(periodType === 'quarterly' && { period_quarter: periodQuarter.toString() })
       });
+
+      // For managers, add user_id to fetch team member's submissions
+      if (isManager && selectedTeamMember) {
+        params.append('user_id', selectedTeamMember.id.toString());
+      }
 
       const res = await authenticatedFetch(`/api/kra/submissions?${params.toString()}`);
       const data = await res.json();
@@ -155,6 +190,7 @@ export default function KRAPage() {
         period_year: periodYear,
         ...(periodType === 'monthly' && { period_month: periodMonth }),
         ...(periodType === 'quarterly' && { period_quarter: periodQuarter }),
+        ...(isManager && selectedTeamMember && { user_id: selectedTeamMember.id }),
         submissions: submissionArray
       };
 
@@ -228,8 +264,43 @@ export default function KRAPage() {
           <Target className="h-8 w-8" />
           Key Result Areas (KRA)
         </h1>
-        <p className="text-muted-foreground mt-1">Submit your KRA performance ratings</p>
+        <p className="text-muted-foreground mt-1">
+          {isManager && selectedTeamMember 
+            ? `Submit KRA performance ratings for ${selectedTeamMember.name}`
+            : 'Submit your KRA performance ratings'}
+        </p>
       </div>
+
+      {isManager && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Select Team Member</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Select
+              value={selectedTeamMember?.id?.toString() || ''}
+              onValueChange={(value) => {
+                const member = teamMembers.find(m => m.id.toString() === value);
+                setSelectedTeamMember(member || null);
+                setSubmissions({});
+                setExistingSubmissions([]);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a team member" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">My Own KRA</SelectItem>
+                {teamMembers.map(member => (
+                  <SelectItem key={member.id} value={member.id.toString()}>
+                    {member.name} ({member.role})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+      )}
 
       {error && (
         <Alert variant="destructive">
@@ -363,13 +434,23 @@ export default function KRAPage() {
                     {kra.kpi_1_name && (
                       <div className="mt-3 space-y-1">
                         <p className="text-sm font-medium">• {kra.kpi_1_name}</p>
-                        <p className="text-xs text-muted-foreground">{kra.kpi_1_scale}</p>
+                        {kra.kpi_1_target && (
+                          <span className="text-xs text-muted-foreground font-medium bg-yellow-100 text-yellow-800 px-2 py-1 rounded-md">Target: {kra.kpi_1_target}</span>
+                        )}
+                        {kra.kpi_1_scale && (
+                          <p className="text-xs text-muted-foreground">{kra.kpi_1_scale}</p>
+                        )}
                       </div>
                     )}
                     {kra.kpi_2_name && (
                       <div className="mt-2 space-y-1">
                         <p className="text-sm font-medium">• {kra.kpi_2_name}</p>
-                        <p className="text-xs text-muted-foreground">{kra.kpi_2_scale}</p>
+                        {kra.kpi_2_target && (
+                          <span className="text-xs text-muted-foreground font-medium bg-yellow-100 text-yellow-800 px-2 py-1 rounded-md">Target: {kra.kpi_2_target}</span>
+                        )}
+                        {kra.kpi_2_scale && (
+                          <p className="text-xs text-muted-foreground">{kra.kpi_2_scale}</p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -389,11 +470,63 @@ export default function KRAPage() {
                       <SelectValue placeholder="Select rating (1-5)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="5">5 - Excellent</SelectItem>
-                      <SelectItem value="4">4 - Very Good</SelectItem>
-                      <SelectItem value="3">3 - Good</SelectItem>
-                      <SelectItem value="2">2 - Needs Improvement</SelectItem>
-                      <SelectItem value="1">1 - Poor</SelectItem>
+                      {(() => {
+                        // Try to get rating labels from KPI 1 first, then KPI 2, fallback to defaults
+                        let ratingLabels = {
+                          '5': '5 - Excellent',
+                          '4': '4 - Very Good',
+                          '3': '3 - Good',
+                          '2': '2 - Needs Improvement',
+                          '1': '1 - Poor'
+                        };
+
+                        // Parse rating labels if available
+                        if (kra.kpi_1_rating_labels) {
+                          try {
+                            const parsed = typeof kra.kpi_1_rating_labels === 'string' 
+                              ? JSON.parse(kra.kpi_1_rating_labels) 
+                              : kra.kpi_1_rating_labels;
+                            if (parsed && typeof parsed === 'object') {
+                              ratingLabels = { ...ratingLabels, ...parsed };
+                            }
+                          } catch (e) {
+                            // If parsing fails, try KPI 2
+                            if (kra.kpi_2_rating_labels) {
+                              try {
+                                const parsed = typeof kra.kpi_2_rating_labels === 'string' 
+                                  ? JSON.parse(kra.kpi_2_rating_labels) 
+                                  : kra.kpi_2_rating_labels;
+                                if (parsed && typeof parsed === 'object') {
+                                  ratingLabels = { ...ratingLabels, ...parsed };
+                                }
+                              } catch (e2) {
+                                // Use defaults
+                              }
+                            }
+                          }
+                        } else if (kra.kpi_2_rating_labels) {
+                          try {
+                            const parsed = typeof kra.kpi_2_rating_labels === 'string' 
+                              ? JSON.parse(kra.kpi_2_rating_labels) 
+                              : kra.kpi_2_rating_labels;
+                            if (parsed && typeof parsed === 'object') {
+                              ratingLabels = { ...ratingLabels, ...parsed };
+                            }
+                          } catch (e) {
+                            // Use defaults
+                          }
+                        }
+
+                        // Only show options that have labels (non-empty)
+                        return ['5', '4', '3', '2', '1'].map(rating => {
+                          const label = ratingLabels[rating] || `${rating} - ${rating === '5' ? 'Excellent' : rating === '4' ? 'Very Good' : rating === '3' ? 'Good' : rating === '2' ? 'Needs Improvement' : 'Poor'}`;
+                          return (
+                            <SelectItem key={rating} value={rating}>
+                              {label}
+                            </SelectItem>
+                          );
+                        });
+                      })()}
                     </SelectContent>
                   </Select>
                 </div>

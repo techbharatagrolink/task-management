@@ -33,9 +33,34 @@ export async function GET(request, { params }) {
 
     // Check if user has access
     const assignedUserIds = task.assigned_user_ids ? task.assigned_user_ids.split(',').map(Number) : [];
-    const canView = hasPermission(user.role, ['Super Admin', 'Admin', 'Manager']) ||
-                    task.created_by === user.id ||
-                    assignedUserIds.includes(user.id);
+    
+    // Super Admin and Admin can view all tasks
+    let canView = hasPermission(user.role, ['Super Admin', 'Admin']) ||
+                  task.created_by === user.id ||
+                  assignedUserIds.includes(user.id);
+    
+    // Managers can only view tasks they created, are assigned to, or assigned to their team members
+    if (user.role === 'Manager' && !hasPermission(user.role, ['Super Admin', 'Admin'])) {
+      // Check if any assigned user is a team member
+      if (assignedUserIds.length > 0) {
+        const teamMembers = await query(
+          'SELECT id FROM users WHERE manager_id = ? AND id IN (' + assignedUserIds.map(() => '?').join(',') + ')',
+          [user.id, ...assignedUserIds]
+        );
+        const hasTeamMember = teamMembers.length > 0;
+        
+        // Manager can view if:
+        // 1. They created the task
+        // 2. They are assigned to the task
+        // 3. Any team member is assigned to the task
+        canView = task.created_by === user.id ||
+                  assignedUserIds.includes(user.id) ||
+                  hasTeamMember;
+      } else {
+        // No assigned users, manager can only view if they created it
+        canView = task.created_by === user.id;
+      }
+    }
 
     if (!canView) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

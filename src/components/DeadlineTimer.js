@@ -178,16 +178,16 @@ export default function DeadlineTimer({ deadline, status, className }) {
           <>
             <span className={cn(
               "text-base font-bold",
-              isUrgent ? "text-orange-700" : "text-blue-700"
+              isUrgent ? "text-orange-700" : "text-yellow-700"
             )}>
-              {timeRemaining.hours}h {timeRemaining.minutes}m left
+              {timeRemaining.hours}h {timeRemaining.minutes}m {timeRemaining.seconds}s left
             </span>
-            <span className={cn(
+            {/* <span className={cn(
               "text-xs",
               isUrgent ? "text-orange-600" : "text-blue-600"
             )}>
               {timeRemaining.seconds}s remaining
-            </span>
+            </span> */}
           </>
         ) : (
           <>

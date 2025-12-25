@@ -27,10 +27,20 @@ export async function GET(request) {
     `;
     const params = [];
 
-    // Filter by assigned user if developer
-    if (user.role?.includes('Developer') && !hasPermission(user.role, ['Super Admin', 'Admin', 'Manager'])) {
+    // Filter by assigned user if developer, operations, or design & content team role (and not admin/manager)
+    if ((user.role?.includes('Developer') || user.role?.includes('Operations') || user.role?.includes('Operation') || user.role === 'Design & Content Team') && !hasPermission(user.role, ['Super Admin', 'Admin', 'Manager'])) {
       sql += ' AND ta.user_id = ?';
       params.push(user.id);
+    }
+
+    // Managers see only tasks assigned to them or their team members (manager_id), or tasks they created
+    if (user.role === 'Manager' && !hasPermission(user.role, ['Super Admin', 'Admin'])) {
+      sql += ` AND (
+        t.created_by = ? OR 
+        ta.user_id = ? OR 
+        ta.user_id IN (SELECT id FROM users WHERE manager_id = ?)
+      )`;
+      params.push(user.id, user.id, user.id);
     }
 
     if (status) {
