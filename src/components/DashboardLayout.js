@@ -21,6 +21,7 @@ export default function DashboardLayout({ children, user }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
+  const [menuPermissions, setMenuPermissions] = useState(null);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -68,6 +69,8 @@ export default function DashboardLayout({ children, user }) {
       const data = await res.json();
       if (data.authenticated) {
         setCurrentUser(data.user);
+        // Fetch menu permissions for the user's role
+        fetchMenuPermissions(data.user.role);
       } else {
         // Token is invalid or expired, already cleared by authenticatedFetch
         router.push('/login');
@@ -75,6 +78,19 @@ export default function DashboardLayout({ children, user }) {
     } catch (err) {
       console.error('Failed to fetch user:', err);
       router.push('/login');
+    }
+  };
+
+  const fetchMenuPermissions = async (role) => {
+    try {
+      const res = await authenticatedFetch(`/api/menu-permissions/check?role=${encodeURIComponent(role)}`);
+      const data = await res.json();
+      if (data.permissions) {
+        setMenuPermissions(data.permissions);
+      }
+    } catch (err) {
+      console.error('Failed to fetch menu permissions:', err);
+      // Continue with default permissions
     }
   };
 
@@ -93,8 +109,9 @@ export default function DashboardLayout({ children, user }) {
   };
 
   // Get navigation items based on user role using the permission system
+  // If menuPermissions are available, use them; otherwise fall back to default
   const navItems = currentUser?.role 
-    ? getSidebarItemsForRole(currentUser.role)
+    ? getSidebarItemsForRole(currentUser.role, menuPermissions)
     : [];
 
   return (

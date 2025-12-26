@@ -76,20 +76,25 @@ export default function AdminDashboard() {
       const empData = await empRes.json();
       const totalEmployees = empData.employees?.length || 0;
 
-      // Fetch tasks
+      // Fetch all tasks (no status filter to ensure we get all tasks for accurate counting)
       const taskRes = await authenticatedFetch('/api/tasks');
       const taskData = await taskRes.json();
-      const allTasks = taskData.tasks || [];
+      const allTasks = Array.isArray(taskData.tasks) ? taskData.tasks : [];
       setTasks(allTasks);
-      const pendingTasks = allTasks.filter(t => t.status === 'pending').length;
-      const activeTasks = allTasks.filter(t => t.status === 'in_progress').length;
-      const completedTasks = allTasks.filter(t => t.status === 'completed').length;
-      const cancelledTasks = allTasks.filter(t => t.status === 'cancelled').length;
+      
+      // Count tasks by status - ensure we only count tasks with valid status values
+      const pendingTasks = allTasks.filter(t => t?.status === 'pending').length;
+      // Active Tasks includes both pending and in_progress tasks (any task that's not completed or cancelled)
+      const activeTasks = allTasks.filter(t => t?.status === 'pending' || t?.status === 'in_progress').length;
+      const completedTasks = allTasks.filter(t => t?.status === 'completed').length;
+      const cancelledTasks = allTasks.filter(t => t?.status === 'cancelled').length;
 
-      // Fetch leaves
-      const leaveRes = await authenticatedFetch('/api/leaves?status=pending');
+      // Fetch all leaves first, then filter for pending to ensure accurate count
+      // This ensures we get all leaves and can count pending ones correctly
+      const leaveRes = await authenticatedFetch('/api/leaves');
       const leaveData = await leaveRes.json();
-      const pendingLeaves = leaveData.leaves?.length || 0;
+      const allLeaves = Array.isArray(leaveData.leaves) ? leaveData.leaves : [];
+      const pendingLeaves = allLeaves.filter(l => l?.status === 'pending').length;
 
       setStats({
         totalEmployees,
@@ -327,6 +332,19 @@ export default function AdminDashboard() {
               <div className="flex-1">
                 <span className="font-medium block mb-1">Review Leaves</span>
                 <p className="text-sm text-gray-600">Approve or reject leave requests</p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-gray-600 transition-colors" />
+            </Link>
+            <Link
+              href="/dashboard/admin/menu-permissions"
+              className="flex items-start gap-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors group"
+            >
+              <div className="bg-purple-100 rounded-lg p-2 group-hover:bg-purple-200 transition-colors">
+                <ListTodo className="h-5 w-5 text-purple-600" />
+              </div>
+              <div className="flex-1">
+                <span className="font-medium block mb-1">Menu Permissions</span>
+                <p className="text-sm text-gray-600">Manage menu visibility for roles</p>
               </div>
               <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-gray-600 transition-colors" />
             </Link>

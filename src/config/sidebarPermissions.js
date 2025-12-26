@@ -16,6 +16,7 @@ import {
   Instagram,
   TrendingUp,
   FileText,
+  Settings,
 } from 'lucide-react';
 
 // Define all available sidebar items
@@ -146,6 +147,12 @@ export const sidebarItems = {
     href: '/dashboard/design/instagram',
     roles: ['Super Admin', 'Admin', 'Design & Content Team'],
   },
+  menuPermissions: {
+    name: 'Menu Permissions Management',
+    icon: Settings,
+    href: '/dashboard/admin/menu-permissions',
+    roles: ['Super Admin'],
+  },
   
 };
 
@@ -194,14 +201,24 @@ export function hasSidebarAccess(userRole, itemRoles) {
 }
 
 // Get sidebar items for a specific role
-export function getSidebarItemsForRole(userRole) {
+// menuPermissions: optional object with menu_key -> boolean mapping from database
+export function getSidebarItemsForRole(userRole, menuPermissions = null) {
   if (!userRole) return [];
   
   const items = [];
   const seenHrefs = new Set(); // Track seen hrefs to prevent duplicates
   
   Object.entries(sidebarItems).forEach(([key, item]) => {
-    if (hasSidebarAccess(userRole, item.roles)) {
+    // Check database permissions first if available
+    let hasAccess = false;
+    if (menuPermissions && menuPermissions.hasOwnProperty(key)) {
+      hasAccess = menuPermissions[key] === true;
+    } else {
+      // Fall back to default permission check
+      hasAccess = hasSidebarAccess(userRole, item.roles);
+    }
+    
+    if (hasAccess) {
       const href = typeof item.href === 'function' ? item.href(userRole) : item.href;
       
       // Skip if we've already added an item with this href

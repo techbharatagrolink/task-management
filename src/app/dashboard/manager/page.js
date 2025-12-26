@@ -50,17 +50,29 @@ export default function ManagerDashboard() {
 
   const fetchStats = async () => {
     try {
-      const [taskRes] = await Promise.all([
+      // Fetch team members and tasks in parallel
+      const [empRes, taskRes] = await Promise.all([
+        authenticatedFetch('/api/employees'),
         authenticatedFetch('/api/tasks')
       ]);
       
+      const empData = await empRes.json();
       const taskData = await taskRes.json();
-      const tasks = taskData.tasks || [];
+      
+      // Get team members count (employees who report to this manager)
+      const teamMembers = Array.isArray(empData.employees) ? empData.employees.length : 0;
+      
+      // Get all tasks (API already filters for manager - tasks they created, assigned to them, or assigned to their team)
+      const allTasks = Array.isArray(taskData.tasks) ? taskData.tasks : [];
+      
+      // Active Tasks includes both pending and in_progress tasks
+      const activeTasks = allTasks.filter(t => t?.status === 'pending' || t?.status === 'in_progress').length;
+      const completedTasks = allTasks.filter(t => t?.status === 'completed').length;
       
       setStats({
-        teamMembers: 0, // TODO: Fetch team members
-        activeTasks: tasks.filter(t => t.status === 'in_progress').length,
-        completedTasks: tasks.filter(t => t.status === 'completed').length
+        teamMembers,
+        activeTasks,
+        completedTasks
       });
     } catch (err) {
       console.error('Failed to fetch stats:', err);
