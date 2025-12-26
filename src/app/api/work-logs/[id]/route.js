@@ -30,8 +30,22 @@ export async function GET(request, { params }) {
 
     const log = logs[0];
 
-    // Permission check: users can only see their own logs unless they're admin/manager/hr
-    if (log.user_id !== user.id && !hasPermission(user.role, ['Super Admin', 'Admin', 'HR', 'Manager'])) {
+    // Permission check
+    const isHR = hasPermission(user.role, ['Super Admin', 'Admin', 'HR']);
+    const isManager = user.role === 'Manager' && !isHR;
+    
+    let canView = log.user_id === user.id || isHR;
+    
+    // Managers can only view logs from their team members
+    if (isManager && log.user_id !== user.id) {
+      const teamMember = await query(
+        'SELECT id FROM users WHERE id = ? AND manager_id = ?',
+        [log.user_id, user.id]
+      );
+      canView = teamMember.length > 0;
+    }
+    
+    if (!canView) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -83,8 +97,22 @@ export async function PUT(request, { params }) {
 
     const existingLog = existingLogs[0];
 
-    // Permission check: users can only update their own logs unless they're admin/manager/hr
-    if (existingLog.user_id !== user.id && !hasPermission(user.role, ['Super Admin', 'Admin', 'HR', 'Manager'])) {
+    // Permission check
+    const isHR = hasPermission(user.role, ['Super Admin', 'Admin', 'HR']);
+    const isManager = user.role === 'Manager' && !isHR;
+    
+    let canUpdate = existingLog.user_id === user.id || isHR;
+    
+    // Managers can only update logs from their team members
+    if (isManager && existingLog.user_id !== user.id) {
+      const teamMember = await query(
+        'SELECT id FROM users WHERE id = ? AND manager_id = ?',
+        [existingLog.user_id, user.id]
+      );
+      canUpdate = teamMember.length > 0;
+    }
+    
+    if (!canUpdate) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -134,8 +162,22 @@ export async function DELETE(request, { params }) {
 
     const existingLog = existingLogs[0];
 
-    // Permission check: users can only delete their own logs unless they're admin/manager/hr
-    if (existingLog.user_id !== user.id && !hasPermission(user.role, ['Super Admin', 'Admin', 'HR', 'Manager'])) {
+    // Permission check
+    const isHR = hasPermission(user.role, ['Super Admin', 'Admin', 'HR']);
+    const isManager = user.role === 'Manager' && !isHR;
+    
+    let canDelete = existingLog.user_id === user.id || isHR;
+    
+    // Managers can only delete logs from their team members
+    if (isManager && existingLog.user_id !== user.id) {
+      const teamMember = await query(
+        'SELECT id FROM users WHERE id = ? AND manager_id = ?',
+        [existingLog.user_id, user.id]
+      );
+      canDelete = teamMember.length > 0;
+    }
+    
+    if (!canDelete) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

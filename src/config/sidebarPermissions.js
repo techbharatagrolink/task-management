@@ -90,7 +90,7 @@ export const sidebarItems = {
     name: 'KRA Scores',
     icon: TrendingUp,
     href: '/dashboard/kra/scores',
-    roles: ['Super Admin', 'Admin', 'HR', 'Manager'],
+    roles: ['Super Admin', 'Admin', 'HR'],
   },
   workLogs: {
     name: 'Daily Work Logs',

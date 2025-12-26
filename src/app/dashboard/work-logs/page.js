@@ -50,7 +50,8 @@ export default function WorkLogsPage() {
     if (user) {
       fetchFields();
       fetchLogs();
-      if (hasRoleAccess(user.role, ['Super Admin', 'Admin', 'HR', 'Manager'])) {
+      // Only Super Admin, Admin, and HR need to fetch employees for filtering
+      if (hasRoleAccess(user.role, ['Super Admin', 'Admin', 'HR'])) {
         fetchEmployees();
       }
     }
@@ -92,7 +93,8 @@ export default function WorkLogsPage() {
   const fetchLogs = async () => {
     try {
       const params = new URLSearchParams();
-      if (selectedEmployee && hasRoleAccess(user?.role, ['Super Admin', 'Admin', 'HR', 'Manager'])) {
+      // Only Super Admin, Admin, and HR can filter by specific employee
+      if (selectedEmployee && hasRoleAccess(user?.role, ['Super Admin', 'Admin', 'HR'])) {
         params.append('user_id', selectedEmployee);
       }
       
@@ -170,7 +172,8 @@ export default function WorkLogsPage() {
         notes: notes.trim() || null
       };
 
-      if (selectedEmployee && hasRoleAccess(user?.role, ['Super Admin', 'Admin', 'HR', 'Manager'])) {
+      // Only Super Admin, Admin, and HR can create logs for other employees
+      if (selectedEmployee && hasRoleAccess(user?.role, ['Super Admin', 'Admin', 'HR'])) {
         payload.user_id = parseInt(selectedEmployee);
       }
 
@@ -309,6 +312,8 @@ export default function WorkLogsPage() {
   }
 
   const isAdmin = hasRoleAccess(user?.role, ['Super Admin', 'Admin']);
+  const isHR = hasRoleAccess(user?.role, ['Super Admin', 'Admin', 'HR']);
+  const isManager = user?.role === 'Manager' && !isHR;
   const canViewAll = hasRoleAccess(user?.role, ['Super Admin', 'Admin', 'HR', 'Manager']);
 
   return (
@@ -319,7 +324,9 @@ export default function WorkLogsPage() {
             <FileText className="h-8 w-8" />
             Daily Work Logs
           </h1>
-          <p className="text-muted-foreground mt-1">Record your daily work activities</p>
+          <p className="text-muted-foreground mt-1">
+            {isHR ? 'View all work logs' : isManager ? 'View your team\'s work logs' : 'Record your daily work activities'}
+          </p>
         </div>
         <div className="flex gap-2">
           {isAdmin && (
@@ -353,7 +360,7 @@ export default function WorkLogsPage() {
         </Alert>
       )}
 
-      {canViewAll && (
+      {(isHR || isAdmin) && (
         <Card>
           <CardHeader>
             <CardTitle>Filter by Employee</CardTitle>
@@ -381,7 +388,9 @@ export default function WorkLogsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Recent Work Logs</CardTitle>
+          <CardTitle>
+            {isHR ? 'Recent Work Logs' : isManager ? 'Team Work Logs' : 'My Work Logs'}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {logs.length === 0 ? (
@@ -522,7 +531,7 @@ export default function WorkLogsPage() {
               />
             </div>
 
-            {canViewAll && (
+            {(isHR || isAdmin) && (
               <div>
                 <Label>Employee</Label>
                 <Select

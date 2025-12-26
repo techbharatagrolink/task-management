@@ -17,14 +17,44 @@ export async function GET(request) {
     const endDate = searchParams.get('end_date');
     const role = searchParams.get('role');
 
-    // Permission check: users can only see their own logs unless they're admin/manager/hr
+    // Check permissions
+    const isHR = hasPermission(user.role, ['Super Admin', 'Admin', 'HR']);
+    const isManager = user.role === 'Manager' && !isHR;
     let targetUserId = null;
-    if (userId && hasPermission(user.role, ['Super Admin', 'Admin', 'HR', 'Manager'])) {
-      targetUserId = parseInt(userId);
-    } else if (userId && parseInt(userId) !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    } else if (!userId && !hasPermission(user.role, ['Super Admin', 'Admin', 'HR', 'Manager'])) {
-      targetUserId = user.id;
+
+    if (userId) {
+      const requestedUserId = parseInt(userId);
+      // Super Admin, Admin, HR can view any user's logs
+      if (isHR) {
+        targetUserId = requestedUserId;
+      }
+      // Managers can only view their team members' logs
+      else if (isManager) {
+        const teamMember = await query(
+          'SELECT id FROM users WHERE id = ? AND manager_id = ?',
+          [requestedUserId, user.id]
+        );
+        if (teamMember.length === 0) {
+          return NextResponse.json(
+            { error: 'Forbidden: You can only view logs for your team members' },
+            { status: 403 }
+          );
+        }
+        targetUserId = requestedUserId;
+      }
+      // Regular users can only view their own logs
+      else if (requestedUserId === user.id) {
+        targetUserId = requestedUserId;
+      } else {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    } else {
+      // No user_id specified
+      if (!isHR && !isManager) {
+        // Regular users see only their own logs
+        targetUserId = user.id;
+      }
+      // HR and Manager will see filtered results based on their role (handled in SQL)
     }
 
     let sql = `
@@ -32,7 +62,8 @@ export async function GET(request) {
         dwl.*,
         u.name as user_name,
         u.email as user_email,
-        u.role as user_role
+        u.role as user_role,
+        u.manager_id
       FROM daily_work_logs dwl
       LEFT JOIN users u ON dwl.user_id = u.id
       WHERE 1=1
@@ -42,6 +73,10 @@ export async function GET(request) {
     if (targetUserId) {
       sql += ' AND dwl.user_id = ?';
       params.push(targetUserId);
+    } else if (isManager && !userId) {
+      // Manager viewing all team logs - filter by manager_id (direct reports only)
+      sql += ' AND u.manager_id = ?';
+      params.push(user.id);
     }
 
     if (startDate) {
@@ -106,10 +141,38 @@ export async function POST(request) {
     const body = await request.json();
     const { log_date, field_data, notes, user_id } = body;
 
-    // Determine target user - admin can create for others, users can only create for themselves
-    const targetUserId = user_id && hasPermission(user.role, ['Super Admin', 'Admin', 'HR', 'Manager']) 
-      ? parseInt(user_id) 
-      : user.id;
+    // Determine target user
+    const isHR = hasPermission(user.role, ['Super Admin', 'Admin', 'HR']);
+    const isManager = user.role === 'Manager' && !isHR;
+    
+    let targetUserId = user.id;
+    if (user_id) {
+      const requestedUserId = parseInt(user_id);
+      // HR can create logs for anyone
+      if (isHR) {
+        targetUserId = requestedUserId;
+      }
+      // Managers can only create logs for their team members
+      else if (isManager) {
+        const teamMember = await query(
+          'SELECT id FROM users WHERE id = ? AND manager_id = ?',
+          [requestedUserId, user.id]
+        );
+        if (teamMember.length === 0) {
+          return NextResponse.json(
+            { error: 'Forbidden: You can only create logs for your team members' },
+            { status: 403 }
+          );
+        }
+        targetUserId = requestedUserId;
+      }
+      // Regular users can only create logs for themselves
+      else if (requestedUserId === user.id) {
+        targetUserId = requestedUserId;
+      } else {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
 
     if (!log_date) {
       return NextResponse.json(
