@@ -9,7 +9,6 @@ import {
   LogOut,
   Menu,
   X,
-  Building2,
   User,
   ChevronDown
 } from 'lucide-react';
@@ -18,7 +17,7 @@ import { getSidebarItemsForRole } from '@/config/sidebarPermissions';
 import { authenticatedFetch, removeAuthToken } from '@/lib/auth-client';
 
 export default function DashboardLayout({ children, user }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
   const [menuPermissions, setMenuPermissions] = useState(null);
@@ -114,16 +113,47 @@ export default function DashboardLayout({ children, user }) {
     ? getSidebarItemsForRole(currentUser.role, menuPermissions)
     : [];
 
+  // Group items by category
+  const groupedItems = navItems.reduce((acc, item) => {
+    const category = item.category || 'Other';
+    if (!acc[category]) {
+      acc[category] = [];
+    }
+    acc[category].push(item);
+    return acc;
+  }, {});
+
+  // Define category order
+  const categoryOrder = [
+    'My Workspace',
+    'Team',
+    'Performance & Goals',
+    'HR',
+    'Administration',
+    'Content Management',
+    'Other'
+  ];
+
+  // Sort categories according to defined order
+  const sortedCategories = Object.keys(groupedItems).sort((a, b) => {
+    const indexA = categoryOrder.indexOf(a);
+    const indexB = categoryOrder.indexOf(b);
+    if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+    if (indexA === -1) return 1;
+    if (indexB === -1) return -1;
+    return indexA - indexB;
+  });
+
   return (
     <div className="min-h-screen bg-background">
       {/* Top Navigation */}
       <nav className="sticky top-0 z-50 w-full border-b bg-background backdrop-blur-sm shadow-sm">
         <div className="flex h-16 items-center px-4 sm:px-6 lg:px-8">
-          {/* Mobile Menu Button */}
+          {/* Hamburger Menu Button - Visible on all screens */}
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden mr-2"
+            className="mr-2"
             onClick={() => setSidebarOpen(!sidebarOpen)}
             aria-label="Toggle sidebar"
           >
@@ -132,7 +162,11 @@ export default function DashboardLayout({ children, user }) {
 
           {/* Logo/Brand */}
           <Link href="/dashboard" className="flex items-center gap-2 mr-4 hover:opacity-80 transition-opacity">
-            <Building2 className="h-6 w-6 text-primary" />
+            <img 
+              src="https://ik.imagekit.io/h7mvzndkk/seller.bharatagrolink.com/New%20Project.jpg?updatedAt=1758957273385" 
+              alt="Bharat Agrolink Logo" 
+              className="h-8 w-auto object-contain"
+            />
             <h1 className="text-lg font-semibold hidden sm:inline-block">
               BharatAgrolink Management System
             </h1>
@@ -207,46 +241,57 @@ export default function DashboardLayout({ children, user }) {
         <aside
           className={cn(
             "fixed left-0 z-40 w-64 border-r bg-white transform transition-transform duration-200 ease-in-out",
-            "top-0 h-screen lg:top-16 lg:h-[calc(100vh-4rem)]",
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+            "top-16 h-[calc(100vh-4rem)]",
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           )}
         >
           <div className="h-full overflow-y-auto py-4">
-            <nav className="space-y-1 px-3">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname === item.href;
-                return (
-                  <Link
-                    key={item.key || item.href}
-                    href={item.href}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                      isActive
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                    )}
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <Icon className="h-5 w-5" />
-                    {item.name}
-                  </Link>
-                );
-              })}
+            <nav className="space-y-6 px-3">
+              {sortedCategories.map((category) => (
+                <div key={category} className="space-y-1">
+                  <div className="px-3 py-2">
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      {category}
+                    </h3>
+                  </div>
+                  {groupedItems[category].map((item) => {
+                    const Icon = item.icon;
+                    const isActive = pathname === item.href;
+                    return (
+                      <Link
+                        key={item.key || item.href}
+                        href={item.href}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                          isActive
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                        )}
+                      >
+                        <Icon className="h-5 w-5" />
+                        {item.name}
+                      </Link>
+                    );
+                  })}
+                </div>
+              ))}
             </nav>
           </div>
         </aside>
 
-        {/* Overlay for mobile */}
+        {/* Overlay - Only visible on mobile when sidebar is open */}
         {sidebarOpen && (
           <div
-            className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+            className="fixed top-16 left-0 right-0 bottom-0 bg-black/50 z-30 lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
 
         {/* Main Content */}
-        <main className="flex-1 p-6 lg:p-8 lg:ml-64">
+        <main className={cn(
+          "flex-1 p-6 lg:p-8 transition-all duration-200",
+          sidebarOpen ? "lg:ml-64" : "lg:ml-0"
+        )}>
           {children}
         </main>
       </div>

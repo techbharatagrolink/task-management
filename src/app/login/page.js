@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader } from '@/components/ui/loader';
-import { Building2, Mail, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { setAuthToken } from '@/lib/auth-client';
@@ -157,13 +157,17 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <Card className="shadow-2xl border-0">
+        <Card className="shadow-xl rounded-2xl border-0">
           <CardHeader className="space-y-1 text-center pb-8">
             <div className="flex justify-center mb-4">
-              <div className="p-4 bg-primary/10 rounded-2xl ring-4 ring-primary/5">
-                <Building2 className="h-10 w-10 text-primary" />
+              <div className="p-4 bg-primary/10 ">
+                <img 
+                  src="https://ik.imagekit.io/h7mvzndkk/seller.bharatagrolink.com/whatsappbg.png?updatedAt=1763807245201" 
+                  alt="Bharat Agrolink Logo" 
+                  className="h-12 w-auto object-contain"
+                />
               </div>
             </div>
             <CardTitle className="text-3xl font-bold tracking-tight">
@@ -260,7 +264,8 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
-                className="w-full h-11 text-base font-semibold"
+                className="w-full h-11 text-base font-semibold border-2"
+                size="lg"
                 disabled={loading || !email || !password}
               >
                 {loading ? (
@@ -276,9 +281,9 @@ export default function LoginPage() {
                 )}
               </Button>
 
-              <div className="text-center text-sm text-muted-foreground pt-4">
+              {/* <div className="text-center text-sm text-muted-foreground pt-1">
                 <p>Secure login with encrypted credentials</p>
-              </div>
+              </div> */}
             </form>
           </CardContent>
         </Card>

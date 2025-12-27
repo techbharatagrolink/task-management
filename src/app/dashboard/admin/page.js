@@ -227,8 +227,7 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
-
-      {/* KRI Alerts Section */}
+{/*       
       {kriMetrics.length > 0 && (
         <div className="space-y-4 mb-8">
           <div className="flex items-center justify-between">
@@ -257,7 +256,6 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* KPI Summary Section */}
       {kpiMetrics.length > 0 && (
         <div className="space-y-4 mb-8">
           <div className="flex items-center justify-between">
@@ -284,7 +282,7 @@ export default function AdminDashboard() {
               })}
           </div>
         </div>
-      )}
+      )} */}
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

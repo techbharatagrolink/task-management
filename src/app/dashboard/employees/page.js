@@ -205,6 +205,8 @@ export default function EmployeesPage() {
     'Admin',
     'HR',
     'Manager',
+    'Employee',
+    'Intern',
     'Backend Developer',
     'Frontend Developer',
     'AI/ML Developer',

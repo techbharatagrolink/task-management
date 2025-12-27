@@ -26,78 +26,91 @@ export const sidebarItems = {
     icon: LayoutDashboard,
     href: (role) => `/dashboard/${getRolePath(role)}`,
     roles: ['all'], // Available to all roles
+    category: 'My Workspace',
   },
   profile: {
     name: 'Profile',
     icon: User,
     href: '/dashboard/profile',
     roles: ['all'],
+    category: 'My Workspace',
   },
-  attendance: {
-    name: 'Attendance',
-    icon: Clock,
-    href: '/dashboard/attendance',
-    roles: ['all'],
-  },
+  // attendance: {
+  //   name: 'Attendance',
+  //   icon: Clock,
+  //   href: '/dashboard/attendance',
+  //   roles: ['all'],
+  //   category: 'HR',
+  // },
   leaves: {
     name: 'Leaves',
     icon: Calendar,
     href: '/dashboard/leaves',
     roles: ['all'],
+    category: 'HR',
   },
   employees: {
     name: 'Employees',
     icon: Users,
     href: '/dashboard/employees',
     roles: ['Super Admin', 'Admin', 'HR'],
+    category: 'HR',
   },
   tasks: {
     name: 'Tasks',
     icon: CheckSquare,
     href: '/dashboard/tasks',
     roles: ['Super Admin', 'Admin', 'Manager'],
+    category: 'My Workspace',
   },
   myTasks: {
     name: 'My Tasks',
     icon: CheckSquare,
     href: '/dashboard/tasks',
     roles: ['Backend Developer', 'Frontend Developer', 'AI/ML Developer', 'App Developer', 'Operations Manager', 'Operations Executive', 'Operation Specialist', 'Operations Intern', 'Design & Content Team'],
+    category: 'My Workspace',
   },
   team: {
     name: 'Team',
     icon: Users,
     href: '/dashboard/team',
     roles: ['Super Admin', 'Admin', 'Manager'],
+    category: 'HR',
   },
-  kpiKri: {
-    name: 'KPI & KRI',
-    icon: TrendingUp,
-    href: '/dashboard/kpi-kri',
-    roles: ['Super Admin', 'Admin', 'Manager', 'HR'],
-  },
+  // kpiKri: {
+  //   name: 'KPI & KRI',
+  //   icon: TrendingUp,
+  //   href: '/dashboard/kpi-kri',
+  //   roles: ['Super Admin', 'Admin', 'Manager', 'HR'],
+  //   category: 'Performance & Goals',
+  // },
   kra: {
     name: 'Key Result Areas',
     icon: Target,
     href: '/dashboard/kra',
     roles: ['all'], // Available to all roles
+    category: 'Performance & Goals',
   },
   manageKra: {
     name: 'Manage KRA',
     icon: Target,
     href: '/dashboard/admin/kra',
     roles: ['Super Admin', 'Admin'],
+    category: 'Performance & Goals',
   },
   kraScores: {
     name: 'KRA Scores',
     icon: TrendingUp,
     href: '/dashboard/kra/scores',
     roles: ['Super Admin', 'Admin', 'HR'],
+    category: 'Performance & Goals',
   },
   workLogs: {
     name: 'Daily Work Logs',
     icon: FileText,
     href: '/dashboard/work-logs',
     roles: ['all'], // Available to all roles
+    category: 'My Workspace',
   },
   // reports: {
   //   name: 'Reports',
@@ -140,18 +153,21 @@ export const sidebarItems = {
     icon: Video,
     href: '/dashboard/design/youtube',
     roles: ['Super Admin', 'Admin', 'Design & Content Team'],
+    category: 'Content Management',
   },
   instagram: {
     name: 'Instagram',
     icon: Instagram,
     href: '/dashboard/design/instagram',
     roles: ['Super Admin', 'Admin', 'Design & Content Team'],
+    category: 'Content Management',
   },
   menuPermissions: {
     name: 'Menu Permissions Management',
     icon: Settings,
     href: '/dashboard/admin/menu-permissions',
     roles: ['Super Admin'],
+    category: 'Administration',
   },
   
 };
@@ -234,6 +250,7 @@ export function getSidebarItemsForRole(userRole, menuPermissions = null) {
         name: item.name,
         icon: item.icon,
         href: href,
+        category: item.category || 'Other', // Include category
       });
     }
   });
