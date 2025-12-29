@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -22,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Calendar, Plus, Clock, CheckCircle2, XCircle, AlertCircle, User, MessageSquare, Send, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar, Plus, Clock, CheckCircle2, XCircle, AlertCircle, User } from 'lucide-react';
 import NoData from '@/components/NoData';
 import AccessDenied from '@/components/AccessDenied';
 import { authenticatedFetch } from '@/lib/auth-client';
@@ -36,9 +35,6 @@ export default function LeavesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
-  const [expandedLeaves, setExpandedLeaves] = useState(new Set());
-  const [commentInputs, setCommentInputs] = useState({});
-  const [submittingComments, setSubmittingComments] = useState({});
   const { toast } = useToast();
 
   // Form state
@@ -171,57 +167,6 @@ export default function LeavesPage() {
         description: `Failed to ${status} leave`,
         variant: 'destructive',
       });
-    }
-  };
-
-  const toggleLeaveExpanded = (leaveId) => {
-    const newExpanded = new Set(expandedLeaves);
-    if (newExpanded.has(leaveId)) {
-      newExpanded.delete(leaveId);
-    } else {
-      newExpanded.add(leaveId);
-    }
-    setExpandedLeaves(newExpanded);
-  };
-
-  const handleAddComment = async (leaveId, e) => {
-    e.preventDefault();
-    const comment = commentInputs[leaveId]?.trim();
-    if (!comment || submittingComments[leaveId]) return;
-
-    setSubmittingComments({ ...submittingComments, [leaveId]: true });
-    try {
-      const res = await authenticatedFetch(`/api/leaves/${leaveId}/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ comment }),
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        toast({
-          title: 'Success',
-          description: 'Comment added successfully',
-        });
-        setCommentInputs({ ...commentInputs, [leaveId]: '' });
-        fetchLeaves();
-      } else {
-        toast({
-          title: 'Error',
-          description: data.error || 'Failed to add comment',
-          variant: 'destructive',
-        });
-      }
-    } catch (err) {
-      console.error('Failed to add comment:', err);
-      toast({
-        title: 'Error',
-        description: 'Failed to add comment',
-        variant: 'destructive',
-      });
-    } finally {
-      setSubmittingComments({ ...submittingComments, [leaveId]: false });
     }
   };
 
@@ -396,158 +341,66 @@ export default function LeavesPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {filteredLeaves.map((leave) => {
-                const isExpanded = expandedLeaves.has(leave.id);
-                const comments = leave.comments || [];
-                const hasComments = comments.length > 0;
-                
-                return (
-                  <div
-                    key={leave.id}
-                    className="border rounded-lg hover:bg-accent/50 transition-colors"
-                  >
-                    <div className="flex items-center justify-between p-4">
-                      <div className="flex items-center gap-4 flex-1">
-                        <Calendar className="h-5 w-5 text-muted-foreground" />
-                        <div className="flex-1">
-                          {(isHR || isManager) && (
-                            <div className="flex items-center gap-2 mb-1">
-                              <User className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm font-medium">{leave.user_name || leave.user_email}</span>
-                            </div>
-                          )}
-                          <p className="font-medium">
-                            {new Date(leave.start_date).toLocaleDateString()} - {new Date(leave.end_date).toLocaleDateString()}
-                          </p>
-                          <span className="text-sm text-muted-foreground bg-yellow-100 p-1 rounded-md">
-                            {leave.leave_type.charAt(0).toUpperCase() + leave.leave_type.slice(1)} • {leave.days || 0} day(s)
-                          </span>
-                          {leave.reason && (
-                            <p className="text-sm text-muted-foreground mt-1">{leave.reason}</p>
-                          )}
-                          {leave.approved_by_name && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {leave.status === 'approved' ? 'Approved' : 'Rejected'} by {leave.approved_by_name}
-                            </p>
-                          )}
+              {filteredLeaves.map((leave) => (
+                <div
+                  key={leave.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                >
+                  <div className="flex items-center gap-4 flex-1">
+                    <Calendar className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex-1">
+                      {(isHR || isManager) && (
+                        <div className="flex items-center gap-2 mb-1">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">{leave.user_name || leave.user_email}</span>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {getStatusIcon(leave.status)}
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(leave.status)}`}>
-                          {leave.status}
-                        </span>
-                        {canApprove && leave.status === 'pending' && (
-                          <div className="flex gap-2 ml-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-green-600 border-green-600 hover:bg-green-50"
-                              onClick={() => handleApproveReject(leave.id, 'approved')}
-                            >
-                              <CheckCircle2 className="h-4 w-4 mr-1" />
-                              Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-red-600 border-red-600 hover:bg-red-50"
-                              onClick={() => handleApproveReject(leave.id, 'rejected')}
-                            >
-                              <XCircle className="h-4 w-4 mr-1" />
-                              Reject
-                            </Button>
-                          </div>
-                        )}
-                        {(canApprove || hasComments) && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => toggleLeaveExpanded(leave.id)}
-                            className="gap-1"
-                          >
-                            <MessageSquare className="h-4 w-4" />
-                            {hasComments && <span className="text-xs">({comments.length})</span>}
-                            {isExpanded ? (
-                              <ChevronUp className="h-4 w-4" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4" />
-                            )}
-                          </Button>
-                        )}
-                      </div>
+                      )}
+                      <p className="font-medium">
+                        {new Date(leave.start_date).toLocaleDateString()} - {new Date(leave.end_date).toLocaleDateString()}
+                      </p>
+                      <span className="text-sm text-muted-foreground bg-yellow-100 p-1 rounded-md">
+                        {leave.leave_type.charAt(0).toUpperCase() + leave.leave_type.slice(1)} • {leave.days || 0} day(s)
+                      </span>
+                      {leave.reason && (
+                        <p className="text-sm text-muted-foreground mt-1">{leave.reason}</p>
+                      )}
+                      {leave.approved_by_name && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {leave.status === 'approved' ? 'Approved' : 'Rejected'} by {leave.approved_by_name}
+                        </p>
+                      )}
                     </div>
-                    
-                    {/* Comments Section */}
-                    {isExpanded && (
-                      <div className="border-t p-4 bg-muted/30">
-                        <div className="space-y-4">
-                          {/* Add Comment Form - Only for HR and Managers */}
-                          {canApprove && (
-                            <form onSubmit={(e) => handleAddComment(leave.id, e)} className="space-y-2">
-                              <Label htmlFor={`comment-${leave.id}`}>Add a comment</Label>
-                              <div className="flex gap-2">
-                                <Textarea
-                                  id={`comment-${leave.id}`}
-                                  value={commentInputs[leave.id] || ''}
-                                  onChange={(e) => setCommentInputs({ ...commentInputs, [leave.id]: e.target.value })}
-                                  placeholder="Write a comment..."
-                                  disabled={submittingComments[leave.id]}
-                                  rows={3}
-                                  className="resize-none"
-                                />
-                                <Button
-                                  type="submit"
-                                  disabled={!commentInputs[leave.id]?.trim() || submittingComments[leave.id]}
-                                  size="icon"
-                                  className="h-[72px]"
-                                >
-                                  {submittingComments[leave.id] ? (
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                  ) : (
-                                    <Send className="h-4 w-4" />
-                                  )}
-                                </Button>
-                              </div>
-                            </form>
-                          )}
-
-                          {/* Comments List */}
-                          <div className="space-y-3">
-                            {comments.length === 0 ? (
-                              <div className="text-center py-4 text-sm text-muted-foreground">
-                                No comments yet. {canApprove && 'Be the first to comment!'}
-                              </div>
-                            ) : (
-                              comments.map((comment) => (
-                                <div key={comment.id} className="flex items-start gap-3 p-3 rounded-lg border bg-background">
-                                  <div className="flex-shrink-0">
-                                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                                      <User className="h-4 w-4 text-primary" />
-                                    </div>
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <p className="font-medium text-sm">{comment.user_name}</p>
-                                      <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                                        {comment.user_role}
-                                      </span>
-                                    </div>
-                                    <p className="text-sm text-foreground whitespace-pre-wrap">{comment.comment}</p>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      {new Date(comment.created_at).toLocaleString()}
-                                    </p>
-                                  </div>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {getStatusIcon(leave.status)}
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(leave.status)}`}>
+                      {leave.status}
+                    </span>
+                    {canApprove && leave.status === 'pending' && (
+                      <div className="flex gap-2 ml-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-green-600 border-green-600 hover:bg-green-50"
+                          onClick={() => handleApproveReject(leave.id, 'approved')}
+                        >
+                          <CheckCircle2 className="h-4 w-4 mr-1" />
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-red-600 border-red-600 hover:bg-red-50"
+                          onClick={() => handleApproveReject(leave.id, 'rejected')}
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Reject
+                        </Button>
                       </div>
                     )}
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>

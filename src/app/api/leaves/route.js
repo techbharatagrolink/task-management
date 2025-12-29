@@ -15,9 +15,8 @@ export async function GET(request) {
     const userId = searchParams.get('user_id');
     const status = searchParams.get('status');
 
-    // Check permissions - HR can see all leaves, Managers see their team's leaves, others see only their own
+    // Check permissions - HR can see all leaves, others see only their own
     const isHR = hasPermission(user.role, ['Super Admin', 'Admin', 'HR']);
-    const isManager = user.role === 'Manager' && !isHR;
     let targetUserId = user.id;
     if (userId && hasPermission(user.role, ['Super Admin', 'Admin', 'HR', 'Manager'])) {
       targetUserId = userId;
@@ -25,7 +24,6 @@ export async function GET(request) {
 
     let sql = `
       SELECT l.*, u.name as user_name, u.email as user_email,
-             u.manager_id,
              approver.name as approved_by_name,
              DATEDIFF(l.end_date, l.start_date) + 1 as days
       FROM leaves l
@@ -34,14 +32,10 @@ export async function GET(request) {
     `;
     const params = [];
 
-    // HR can see all leaves, Managers see their team's leaves, others see only their own
+    // HR can see all leaves, others see only their own
     if (isHR && !userId) {
       // HR viewing all leaves - no user filter
       sql += ' WHERE 1=1';
-    } else if (isManager && !userId) {
-      // Manager viewing their team members' leaves
-      sql += ' WHERE u.manager_id = ?';
-      params.push(user.id);
     } else {
       sql += ' WHERE l.user_id = ?';
       params.push(targetUserId);
@@ -55,35 +49,6 @@ export async function GET(request) {
     sql += ' ORDER BY l.created_at DESC';
 
     const leaves = await query(sql, params);
-
-    // Get comments for all leaves if there are any
-    if (leaves.length > 0) {
-      const leaveIds = leaves.map(l => l.id);
-      const placeholders = leaveIds.map(() => '?').join(',');
-      
-      const comments = await query(
-        `SELECT lc.*, u.name as user_name, u.role as user_role, u.email as user_email
-         FROM leave_comments lc
-         JOIN users u ON lc.user_id = u.id
-         WHERE lc.leave_id IN (${placeholders})
-         ORDER BY lc.created_at ASC`,
-        leaveIds
-      );
-
-      // Group comments by leave_id
-      const commentsByLeave = {};
-      comments.forEach(comment => {
-        if (!commentsByLeave[comment.leave_id]) {
-          commentsByLeave[comment.leave_id] = [];
-        }
-        commentsByLeave[comment.leave_id].push(comment);
-      });
-
-      // Attach comments to leaves
-      leaves.forEach(leave => {
-        leave.comments = commentsByLeave[leave.id] || [];
-      });
-    }
 
     return NextResponse.json({ leaves });
   } catch (error) {

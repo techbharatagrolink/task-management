@@ -17,6 +17,10 @@ import {
   TrendingUp,
   FileText,
   Settings,
+  Bell,
+  Trophy,
+  Award,
+  Cake,
 } from 'lucide-react';
 
 // Define all available sidebar items
@@ -162,12 +166,54 @@ export const sidebarItems = {
     roles: ['Super Admin', 'Admin', 'Design & Content Team'],
     category: 'Content Management',
   },
+  notifications: {
+    name: 'Notifications',
+    icon: Bell,
+    href: '/dashboard/notifications',
+    roles: ['all'], // Available to all roles
+    category: 'My Workspace',
+  },
+  calendar: {
+    name: 'Calendar',
+    icon: Calendar,
+    href: '/dashboard/calendar',
+    roles: ['all'], // Available to all roles
+    category: 'My Workspace',
+  },
   menuPermissions: {
     name: 'Menu Permissions Management',
     icon: Settings,
     href: '/dashboard/admin/menu-permissions',
     roles: ['Super Admin'],
     category: 'Administration',
+  },
+  topEmployees: {
+    name: 'Top Employees',
+    icon: Trophy,
+    href: '/dashboard/top-employees',
+    roles: ['Super Admin', 'Admin', 'Manager', 'HR'],
+    category: 'Performance & Goals',
+  },
+  employeeRatings: {
+    name: 'Employee Ratings',
+    icon: Award,
+    href: '/dashboard/employee-ratings',
+    roles: ['Super Admin', 'Admin', 'Manager', 'HR'],
+    category: 'Performance & Goals',
+  },
+  payslips: {
+    name: 'Payslips',
+    icon: FileText,
+    href: '/dashboard/payslips',
+    roles: ['Super Admin', 'Admin', 'Manager', 'HR'],
+    category: 'HR',
+  },
+  birthdayManagement: {
+    name: 'Birthday Management',
+    icon: Cake,
+    href: '/dashboard/birthday-management',
+    roles: ['Super Admin', 'Admin', 'HR'],
+    category: 'HR',
   },
   
 };
