@@ -36,7 +36,8 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -44,6 +45,7 @@ import { authenticatedFetch } from '@/lib/auth-client';
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -62,11 +64,27 @@ export default function EmployeesPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [employeeToDelete, setEmployeeToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
+    fetchUser();
     fetchEmployees();
     fetchManagers();
   }, []);
+
+  const fetchUser = async () => {
+    try {
+      const res = await authenticatedFetch('/api/auth/check');
+      if (res.ok) {
+        const data = await res.json();
+        setUser(data.user);
+      }
+    } catch (err) {
+      console.error('Failed to fetch user:', err);
+    }
+  };
 
   const fetchManagers = async () => {
     try {
@@ -200,6 +218,45 @@ export default function EmployeesPage() {
     }
   };
 
+  const handleDeleteClick = (employee) => {
+    setEmployeeToDelete(employee);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setEmployeeToDelete(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!employeeToDelete) return;
+
+    setDeleting(true);
+    try {
+      const res = await authenticatedFetch(`/api/employees/${employeeToDelete.id}`, {
+        method: 'DELETE'
+      });
+
+      if (res.ok) {
+        setDeleteDialogOpen(false);
+        setEmployeeToDelete(null);
+        fetchEmployees(); // Refresh the list
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Failed to delete employee');
+        setDeleteDialogOpen(false);
+      }
+    } catch (err) {
+      console.error('Delete error:', err);
+      setError('Network error. Please try again.');
+      setDeleteDialogOpen(false);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const canDelete = user && ['Super Admin', 'Admin', 'HR'].includes(user.role);
+
   const roles = [
     'Super Admin',
     'Admin',
@@ -237,14 +294,16 @@ export default function EmployeesPage() {
             Manage your team members and their information
           </p>
         </div>
-        <Button
-          onClick={() => setShowCreateModal(true)}
-          className="gap-2"
-          size="lg"
-        >
-          <UserPlus className="h-4 w-4" />
-          Add Employee
-        </Button>
+        {user && ['Super Admin', 'Admin', 'HR'].includes(user.role) && (
+          <Button
+            onClick={() => setShowCreateModal(true)}
+            className="gap-2"
+            size="lg"
+          >
+            <UserPlus className="h-4 w-4" />
+            Add Employee
+          </Button>
+        )}
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -309,12 +368,23 @@ export default function EmployeesPage() {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <Link
-                    href={`/dashboard/employees/${emp.id}`}
-                    className="text-indigo-600 hover:text-indigo-900"
-                  >
-                    View
-                  </Link>
+                  <div className="flex items-center gap-3">
+                    <Link
+                      href={`/dashboard/employees/${emp.id}`}
+                      className="text-indigo-600 hover:text-indigo-900"
+                    >
+                      View
+                    </Link>
+                    {canDelete && emp.id !== user?.id && (
+                      <button
+                        onClick={() => handleDeleteClick(emp)}
+                        className="text-red-600 hover:text-red-900 flex items-center gap-1"
+                        title="Delete employee"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -615,6 +685,58 @@ export default function EmployeesPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={handleDeleteCancel}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              Delete Employee
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this employee? This will deactivate their account. This action cannot be undone.
+            </DialogDescription>
+            {employeeToDelete && (
+              <div className="mt-4 p-3 bg-muted rounded-md">
+                <div className="font-semibold">{employeeToDelete.name}</div>
+                <div className="text-sm text-muted-foreground mt-1">
+                  {employeeToDelete.email}
+                </div>
+                <div className="text-sm text-muted-foreground mt-1">
+                  Role: {employeeToDelete.role} {employeeToDelete.department && `• ${employeeToDelete.department}`}
+                </div>
+              </div>
+            )}
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleDeleteCancel}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Employee
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

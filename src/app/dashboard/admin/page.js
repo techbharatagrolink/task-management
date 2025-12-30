@@ -285,10 +285,14 @@ export default function AdminDashboard() {
       )} */}
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold mb-4">Task Status Distribution</h2>
-          <Doughnut data={taskChartData} />
+          <div className="flex justify-center">
+            <div className="max-w-sm w-full">
+              <Doughnut data={taskChartData} />
+            </div>
+          </div>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">

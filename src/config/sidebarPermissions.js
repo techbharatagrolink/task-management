@@ -46,6 +46,13 @@ export const sidebarItems = {
   //   roles: ['all'],
   //   category: 'HR',
   // },
+  attendancefiles: {
+    name: 'Attendance Files',
+    icon: Clock,
+    href: '/dashboard/attendance-files',
+    roles: ['Super Admin', 'Admin', 'HR'],
+    category: 'HR',
+  },
   leaves: {
     name: 'Leaves',
     icon: Calendar,

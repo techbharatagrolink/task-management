@@ -69,7 +69,7 @@ export async function PUT(request, { params }) {
     const body = await request.json();
 
     // Check permissions
-    const canEdit = hasPermission(user.role, ['Super Admin', 'Admin']) ||
+    const canEdit = hasPermission(user.role, ['Super Admin', 'Admin', 'HR']) ||
                     (parseInt(id) === user.id && !body.role && !body.salary);
 
     if (!canEdit) {
@@ -197,11 +197,19 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!hasPermission(user.role, ['Super Admin', 'Admin'])) {
+    if (!hasPermission(user.role, ['Super Admin', 'Admin', 'HR'])) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const { id } = await params;
+
+    // Prevent users from deleting themselves
+    if (parseInt(id) === user.id) {
+      return NextResponse.json(
+        { error: 'You cannot delete your own account' },
+        { status: 400 }
+      );
+    }
 
     // Soft delete
     await query('UPDATE users SET is_active = 0 WHERE id = ?', [id]);

@@ -5,15 +5,31 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, Mail, Briefcase, Building2, Calendar } from 'lucide-react';
+import { User, Mail, Briefcase, Building2, Calendar, Lock, Eye, EyeOff, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
 import NoData from '@/components/NoData';
 import AccessDenied from '@/components/AccessDenied';
+import { cn } from '@/lib/utils';
 
 import { authenticatedFetch } from '@/lib/auth-client';
 export default function ProfilePage() {
+  const { toast } = useToast();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    old_password: '',
+    new_password: '',
+    confirm_password: ''
+  });
+  const [passwordErrors, setPasswordErrors] = useState({});
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -34,6 +50,82 @@ export default function ProfilePage() {
       setError('Failed to load profile');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasswordChange = (field, value) => {
+    setPasswordData({ ...passwordData, [field]: value });
+    if (passwordErrors[field]) {
+      setPasswordErrors({ ...passwordErrors, [field]: '' });
+    }
+    setPasswordSuccess(false);
+  };
+
+  const validatePasswordForm = () => {
+    const errors = {};
+
+    if (!passwordData.new_password) {
+      errors.new_password = 'New password is required';
+    } else if (passwordData.new_password.length < 6) {
+      errors.new_password = 'Password must be at least 6 characters long';
+    }
+
+    if (!passwordData.confirm_password) {
+      errors.confirm_password = 'Please confirm your new password';
+    } else if (passwordData.new_password !== passwordData.confirm_password) {
+      errors.confirm_password = 'Passwords do not match';
+    }
+
+    setPasswordErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPasswordSuccess(false);
+
+    if (!validatePasswordForm()) {
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const res = await authenticatedFetch('/api/profile/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          new_password: passwordData.new_password
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setPasswordSuccess(true);
+        setPasswordData({
+          old_password: '',
+          new_password: '',
+          confirm_password: ''
+        });
+        toast({
+          title: 'Success',
+          description: 'Password changed successfully',
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: data.error || 'Failed to change password',
+        });
+      }
+    } catch (err) {
+      console.error('Change password error:', err);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Network error. Please try again.',
+      });
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -146,6 +238,159 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Change Password Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Lock className="h-5 w-5" />
+            Change Password
+          </CardTitle>
+          <CardDescription>
+            Update your account password. Old password is not required.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleChangePassword} className="space-y-4">
+            {passwordSuccess && (
+              <Alert className="border-green-500 bg-green-50 border-2">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-800 font-medium">
+                  Password changed successfully!
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <div className="space-y-4 p-4 bg-gray-50 rounded-lg border">
+              <div className="space-y-2">
+                <Label htmlFor="old_password" className="text-sm font-medium">
+                  Current Password (for reference)
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="old_password"
+                    type={showOldPassword ? "text" : "password"}
+                    value={passwordData.old_password}
+                    onChange={(e) => handlePasswordChange('old_password', e.target.value)}
+                    placeholder="Current password (cannot be displayed - stored securely)"
+                    disabled
+                    className="h-11 pr-10 bg-gray-100"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowOldPassword(!showOldPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showOldPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Note: Your current password is stored securely and cannot be displayed. You can change your password without entering the old one.
+                </p>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <Label htmlFor="new_password" className="text-sm font-medium">
+                  New Password <span className="text-destructive">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="new_password"
+                    type={showNewPassword ? "text" : "password"}
+                    value={passwordData.new_password}
+                    onChange={(e) => handlePasswordChange('new_password', e.target.value)}
+                    placeholder="Enter new password (min. 6 characters)"
+                    disabled={changingPassword}
+                    className={cn(
+                      "h-11 pr-10",
+                      passwordErrors.new_password && "border-destructive focus-visible:ring-destructive"
+                    )}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    tabIndex={-1}
+                    disabled={changingPassword}
+                  >
+                    {showNewPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+                {passwordErrors.new_password && (
+                  <p className="text-sm text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {passwordErrors.new_password}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirm_password" className="text-sm font-medium">
+                  Confirm New Password <span className="text-destructive">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="confirm_password"
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={passwordData.confirm_password}
+                    onChange={(e) => handlePasswordChange('confirm_password', e.target.value)}
+                    placeholder="Confirm your new password"
+                    disabled={changingPassword}
+                    className={cn(
+                      "h-11 pr-10",
+                      passwordErrors.confirm_password && "border-destructive focus-visible:ring-destructive"
+                    )}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    tabIndex={-1}
+                    disabled={changingPassword}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+                {passwordErrors.confirm_password && (
+                  <p className="text-sm text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {passwordErrors.confirm_password}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <Button type="submit" disabled={changingPassword} className="w-full">
+              {changingPassword ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Changing Password...
+                </>
+              ) : (
+                <>
+                  <Lock className="mr-2 h-4 w-4" />
+                  Change Password
+                </>
+              )}
+            </Button>
+          </form>
         </CardContent>
       </Card>
     </div>

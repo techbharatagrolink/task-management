@@ -83,8 +83,8 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only Admin and Super Admin can create employees
-    if (!hasPermission(user.role, ['Super Admin', 'Admin'])) {
+    // Only Admin, Super Admin, and HR can create employees
+    if (!hasPermission(user.role, ['Super Admin', 'Admin', 'HR'])) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
