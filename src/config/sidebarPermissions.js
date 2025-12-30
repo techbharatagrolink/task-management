@@ -21,6 +21,7 @@ import {
   Trophy,
   Award,
   Cake,
+  FolderOpen,
 } from 'lucide-react';
 
 // Define all available sidebar items
@@ -50,6 +51,13 @@ export const sidebarItems = {
     name: 'Attendance Files',
     icon: Clock,
     href: '/dashboard/attendance-files',
+    roles: ['Super Admin', 'Admin', 'HR'],
+    category: 'HR',
+  },
+  employeeDocuments: {
+    name: 'Employee Documents',
+    icon: FolderOpen,
+    href: '/dashboard/employee-documents',
     roles: ['Super Admin', 'Admin', 'HR'],
     category: 'HR',
   },
