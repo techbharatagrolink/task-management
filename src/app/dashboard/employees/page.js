@@ -88,7 +88,7 @@ export default function EmployeesPage() {
 
   const fetchManagers = async () => {
     try {
-      // Fetch all employees for the manager dropdown (backend will validate only Managers can be assigned)
+      // Fetch all employees for the manager dropdown (any user can be assigned as manager)
       const res = await authenticatedFetch('/api/employees');
       const data = await res.json();
       if (data.employees) {

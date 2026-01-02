@@ -11,6 +11,13 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -33,7 +40,9 @@ import {
   User,
   CheckCircle2,
   Circle,
-  Trash2
+  Trash2,
+  Edit,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { authenticatedFetch } from '@/lib/auth-client';
@@ -52,13 +61,56 @@ export default function TaskDetailsPage() {
   const [userRole, setUserRole] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    title: '',
+    description: '',
+    priority: 'medium',
+    status: 'pending',
+    deadline: '',
+    progress: 0,
+    assigned_users: []
+  });
+  const [employees, setEmployees] = useState([]);
 
   useEffect(() => {
     if (taskId) {
       fetchTaskDetails();
       fetchUserRole();
+      fetchEmployees();
     }
   }, [taskId]);
+
+  useEffect(() => {
+    if (task && editDialogOpen) {
+      // Parse assigned user IDs from the task
+      const assignedIds = task.assigned_user_ids ? task.assigned_user_ids.split(',').map(Number) : [];
+      
+      // Format deadline for datetime-local input
+      let deadlineValue = '';
+      if (task.deadline) {
+        const deadlineDate = new Date(task.deadline);
+        // Convert to local datetime-local format (YYYY-MM-DDTHH:mm)
+        const year = deadlineDate.getFullYear();
+        const month = String(deadlineDate.getMonth() + 1).padStart(2, '0');
+        const day = String(deadlineDate.getDate()).padStart(2, '0');
+        const hours = String(deadlineDate.getHours()).padStart(2, '0');
+        const minutes = String(deadlineDate.getMinutes()).padStart(2, '0');
+        deadlineValue = `${year}-${month}-${day}T${hours}:${minutes}`;
+      }
+      
+      setEditFormData({
+        title: task.title || '',
+        description: task.description || '',
+        priority: task.priority || 'medium',
+        status: task.status || 'pending',
+        deadline: deadlineValue,
+        progress: task.progress || 0,
+        assigned_users: assignedIds
+      });
+    }
+  }, [task, editDialogOpen]);
 
   const fetchTaskDetails = async () => {
     try {
@@ -172,7 +224,62 @@ export default function TaskDetailsPage() {
     }
   };
 
+  const fetchEmployees = async () => {
+    try {
+      const res = await authenticatedFetch('/api/employees');
+      const data = await res.json();
+      setEmployees(data.employees || []);
+    } catch (err) {
+      console.error('Failed to fetch employees:', err);
+    }
+  };
+
+  const handleEditClick = () => {
+    setEditDialogOpen(true);
+  };
+
+  const handleEditCancel = () => {
+    setEditDialogOpen(false);
+    setError('');
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!task) return;
+
+    setEditing(true);
+    setError('');
+    
+    try {
+      // Send the datetime-local value directly (no UTC conversion)
+      // This preserves the user's intended local time
+      const updateData = { ...editFormData };
+      
+      const res = await authenticatedFetch(`/api/tasks/${task.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setEditDialogOpen(false);
+        // Refresh task details
+        await fetchTaskDetails();
+      } else {
+        setError(data.error || 'Failed to update task');
+      }
+    } catch (err) {
+      console.error('Failed to update task:', err);
+      setError('Network error. Please try again.');
+    } finally {
+      setEditing(false);
+    }
+  };
+
   const isAdmin = userRole === 'Super Admin' || userRole === 'Admin';
+  const canDelete = isAdmin || userRole === 'Manager' || userRole === 'HR';
+  const canEdit = isAdmin || userRole === 'Manager' || userRole === 'HR';
 
   const handleDeleteClick = () => {
     setDeleteDialogOpen(true);
@@ -210,7 +317,12 @@ export default function TaskDetailsPage() {
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
-    const date = new Date(dateString);
+    // Handle both ISO format and datetime-local format
+    // Replace space with T if needed for consistent parsing
+    const normalizedString = dateString.includes('T') ? dateString : dateString.replace(' ', 'T');
+    const date = new Date(normalizedString);
+    // Check if date is valid
+    if (isNaN(date.getTime())) return 'N/A';
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -285,16 +397,28 @@ export default function TaskDetailsPage() {
             <p className="text-muted-foreground mt-1">View and manage task information</p>
           </div>
         </div>
-        {isAdmin && (
-          <Button
-            variant="destructive"
-            onClick={handleDeleteClick}
-            className="gap-2"
-          >
-            <Trash2 className="h-4 w-4" />
-            Delete Task
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {canEdit && (
+            <Button
+              variant="outline"
+              onClick={handleEditClick}
+              className="gap-2"
+            >
+              <Edit className="h-4 w-4" />
+              Edit Task
+            </Button>
+          )}
+          {canDelete && (
+            <Button
+              variant="destructive"
+              onClick={handleDeleteClick}
+              className="gap-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete Task
+            </Button>
+          )}
+        </div>
       </div>
 
       {error && (
@@ -629,6 +753,224 @@ export default function TaskDetailsPage() {
           </Card>
         </div>
       </div>
+
+      {/* Edit Task Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={handleEditCancel}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white border-2 shadow-2xl">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Edit className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <DialogTitle className="text-2xl font-bold">Edit Task</DialogTitle>
+                <DialogDescription className="mt-1 text-base">
+                  Update task information and assignments
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <form onSubmit={handleEditSubmit} className="space-y-6 pt-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="font-medium">{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {/* Basic Information */}
+            <div className="space-y-4 p-4 bg-gray-50 rounded-lg border">
+              <div className="flex items-center gap-2 pb-2">
+                <CheckSquare className="h-5 w-5 text-primary" />
+                <h3 className="text-lg font-semibold text-foreground">Task Information</h3>
+              </div>
+              <Separator className="mb-4" />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="edit-title" className="text-sm font-medium">
+                    Task Title <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="edit-title"
+                    type="text"
+                    required
+                    value={editFormData.title}
+                    onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                    placeholder="Enter task title"
+                    disabled={editing}
+                    className="h-11"
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="edit-description" className="text-sm font-medium">
+                    Description
+                  </Label>
+                  <textarea
+                    id="edit-description"
+                    value={editFormData.description}
+                    onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                    placeholder="Enter task description"
+                    disabled={editing}
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    rows="3"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-priority" className="text-sm font-medium">
+                    Priority
+                  </Label>
+                  <Select
+                    value={editFormData.priority}
+                    onValueChange={(value) => setEditFormData({ ...editFormData, priority: value })}
+                    disabled={editing}
+                  >
+                    <SelectTrigger id="edit-priority" className="h-11">
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="critical">Critical</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-status" className="text-sm font-medium">
+                    Status
+                  </Label>
+                  <Select
+                    value={editFormData.status}
+                    onValueChange={(value) => setEditFormData({ ...editFormData, status: value })}
+                    disabled={editing}
+                  >
+                    <SelectTrigger id="edit-status" className="h-11">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-deadline" className="text-sm font-medium flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    Deadline
+                  </Label>
+                  <Input
+                    id="edit-deadline"
+                    type="datetime-local"
+                    value={editFormData.deadline}
+                    onChange={(e) => setEditFormData({ ...editFormData, deadline: e.target.value })}
+                    disabled={editing}
+                    className="h-11"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-progress" className="text-sm font-medium">
+                    Progress (%)
+                  </Label>
+                  <Input
+                    id="edit-progress"
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={editFormData.progress}
+                    onChange={(e) => setEditFormData({ ...editFormData, progress: parseInt(e.target.value) || 0 })}
+                    disabled={editing}
+                    className="h-11"
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="edit-assigned_users" className="text-sm font-medium flex items-center gap-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    Assign To
+                  </Label>
+                  <select
+                    id="edit-assigned_users"
+                    multiple
+                    value={editFormData.assigned_users.map(String)}
+                    onChange={(e) => {
+                      const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
+                      setEditFormData({ ...editFormData, assigned_users: selected });
+                    }}
+                    disabled={editing}
+                    className="flex h-32 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {(() => {
+                      const employeesByRole = employees
+                        .filter(emp => emp.role !== 'Super Admin' && emp.is_active !== 0)
+                        .reduce((acc, emp) => {
+                          const role = emp.role || 'Other';
+                          if (!acc[role]) {
+                            acc[role] = [];
+                          }
+                          acc[role].push(emp);
+                          return acc;
+                        }, {});
+
+                      const sortedRoles = Object.keys(employeesByRole).sort();
+                      
+                      return sortedRoles.map(role => (
+                        <optgroup key={role} label={role}>
+                          {employeesByRole[role]
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map(emp => (
+                              <option key={emp.id} value={emp.id}>
+                                {emp.name} {emp.department ? `- ${emp.department}` : ''}
+                              </option>
+                            ))}
+                        </optgroup>
+                      ));
+                    })()}
+                  </select>
+                  <p className="text-xs text-muted-foreground">Hold Ctrl/Cmd to select multiple. Employees are grouped by role.</p>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0 pt-4 border-t bg-gray-50 -mx-6 -mb-6 px-6 pb-6 mt-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleEditCancel}
+                disabled={editing}
+                className="min-w-[100px]"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={editing}
+                className="gap-2 min-w-[120px]"
+              >
+                {editing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <CheckSquare className="h-4 w-4" />
+                    Update Task
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={handleDeleteCancel}>

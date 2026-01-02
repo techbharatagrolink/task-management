@@ -112,6 +112,7 @@ export default function TasksPage() {
   };
 
   const isAdmin = userRole === 'Super Admin' || userRole === 'Admin';
+  const canDelete = isAdmin || userRole === 'Manager' || userRole === 'HR';
 
   const handleDeleteClick = (task) => {
     setTaskToDelete(task);
@@ -154,14 +155,9 @@ export default function TasksPage() {
     setSubmitting(true);
     
     try {
-      // Convert datetime-local to UTC ISO string if deadline is provided
+      // Send the datetime-local value directly (no UTC conversion)
+      // This preserves the user's intended local time
       const taskData = { ...formData };
-      if (taskData.deadline) {
-        // datetime-local format is YYYY-MM-DDTHH:mm (local time, no timezone)
-        // Convert to UTC ISO string for storage
-        const localDate = new Date(taskData.deadline);
-        taskData.deadline = localDate.toISOString();
-      }
       
       const res = await authenticatedFetch('/api/tasks', {
         method: 'POST',
@@ -290,7 +286,7 @@ export default function TasksPage() {
                     </CardTitle>
                   </Link>
                   <div className="flex items-center gap-2">
-                    {isAdmin && (
+                    {canDelete && (
                       <Button
                         variant="ghost"
                         size="icon"

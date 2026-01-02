@@ -34,8 +34,8 @@ export async function GET(request, { params }) {
     // Check if user has access
     const assignedUserIds = task.assigned_user_ids ? task.assigned_user_ids.split(',').map(Number) : [];
     
-    // Super Admin and Admin can view all tasks
-    let canView = hasPermission(user.role, ['Super Admin', 'Admin']) ||
+    // Super Admin, Admin, and HR can view all tasks
+    let canView = hasPermission(user.role, ['Super Admin', 'Admin', 'HR']) ||
                   task.created_by === user.id ||
                   assignedUserIds.includes(user.id);
     
@@ -117,7 +117,7 @@ export async function PUT(request, { params }) {
     const body = await request.json();
 
     // Check permissions
-    const canEdit = hasPermission(user.role, ['Super Admin', 'Admin', 'Manager']);
+    const canEdit = hasPermission(user.role, ['Super Admin', 'Admin', 'Manager', 'HR']);
 
     if (!canEdit) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -153,15 +153,9 @@ export async function PUT(request, { params }) {
       params_arr.push(status);
     }
     if (deadline !== undefined) {
-      // Convert datetime-local to UTC ISO string if needed
-      let deadlineValue = deadline;
-      if (deadline && typeof deadline === 'string' && !deadline.endsWith('Z') && !deadline.includes('+') && !deadline.match(/-\d{2}:\d{2}$/)) {
-        // It's a datetime-local format, convert to UTC ISO string
-        const localDate = new Date(deadline);
-        deadlineValue = localDate.toISOString();
-      }
+      // Store deadline as-is (no UTC conversion) to preserve user's intended local time
       updates.push('deadline = ?');
-      params_arr.push(deadlineValue);
+      params_arr.push(deadline);
     }
     if (progress !== undefined) {
       updates.push('progress = ?');
@@ -215,11 +209,11 @@ export async function DELETE(request, { params }) {
 
     const { id } = await params;
 
-    // Check permissions - only Super Admin and Admin can delete tasks
-    const canDelete = hasPermission(user.role, ['Super Admin', 'Admin']);
+    // Check permissions - Super Admin, Admin, Manager, and HR can delete tasks
+    const canDelete = hasPermission(user.role, ['Super Admin', 'Admin', 'Manager', 'HR']);
 
     if (!canDelete) {
-      return NextResponse.json({ error: 'Forbidden: Only admins can delete tasks' }, { status: 403 });
+      return NextResponse.json({ error: 'Forbidden: Only admins, managers, and HR can delete tasks' }, { status: 403 });
     }
 
     // Check if task exists

@@ -142,10 +142,10 @@ export async function POST(request) {
 
     // Validate manager_id if provided
     if (manager_id) {
-      const manager = await query('SELECT id, role FROM users WHERE id = ? AND role = ?', [manager_id, 'Manager']);
+      const manager = await query('SELECT id FROM users WHERE id = ?', [manager_id]);
       if (manager.length === 0) {
         return NextResponse.json(
-          { error: 'Invalid manager ID. Manager must exist and have Manager role' },
+          { error: 'Invalid manager ID. Manager must exist' },
           { status: 400 }
         );
       }

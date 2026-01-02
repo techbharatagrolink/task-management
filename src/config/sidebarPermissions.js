@@ -79,7 +79,7 @@ export const sidebarItems = {
     name: 'Tasks',
     icon: CheckSquare,
     href: '/dashboard/tasks',
-    roles: ['Super Admin', 'Admin', 'Manager'],
+    roles: ['Super Admin', 'Admin', 'Manager', 'HR'],
     category: 'My Workspace',
   },
   myTasks: {

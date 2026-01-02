@@ -27,8 +27,8 @@ export async function GET(request) {
     `;
     const params = [];
 
-    // Filter by assigned user if developer, operations, or design & content team role (and not admin/manager)
-    if ((user.role?.includes('Developer') || user.role?.includes('Operations') || user.role?.includes('Operation') || user.role === 'Design & Content Team') && !hasPermission(user.role, ['Super Admin', 'Admin', 'Manager'])) {
+    // Filter by assigned user if developer, operations, or design & content team role (and not admin/manager/hr)
+    if ((user.role?.includes('Developer') || user.role?.includes('Operations') || user.role?.includes('Operation') || user.role === 'Design & Content Team') && !hasPermission(user.role, ['Super Admin', 'Admin', 'Manager', 'HR'])) {
       sql += ' AND ta.user_id = ?';
       params.push(user.id);
     }
@@ -108,8 +108,8 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only Admin, Manager, Super Admin can create tasks
-    if (!hasPermission(user.role, ['Super Admin', 'Admin', 'Manager'])) {
+    // Only Admin, Manager, HR, Super Admin can create tasks
+    if (!hasPermission(user.role, ['Super Admin', 'Admin', 'Manager', 'HR'])) {
       await connection.rollback();
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
