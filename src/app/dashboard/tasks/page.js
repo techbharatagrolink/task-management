@@ -35,7 +35,9 @@ import {
   Loader2,
   Clock,
   ListChecks,
-  Trash2
+  Trash2,
+  Filter,
+  XCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -60,6 +62,15 @@ export default function TasksPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  
+  // Filter states
+  const [filters, setFilters] = useState({
+    status: '',
+    assigned_to: '',
+    priority: '',
+    department: ''
+  });
+  const [departments, setDepartments] = useState([]);
 
   useEffect(() => {
     fetchTasks();
@@ -69,14 +80,31 @@ export default function TasksPage() {
   useEffect(() => {
     if (userRole) {
       fetchEmployees();
+      fetchDepartments();
     }
   }, [userRole]);
+
+  useEffect(() => {
+    fetchTasks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters]);
 
   const [employees, setEmployees] = useState([]);
 
   const fetchTasks = async () => {
     try {
-      const res = await authenticatedFetch('/api/tasks');
+      setLoading(true);
+      // Build query string from filters
+      const params = new URLSearchParams();
+      if (filters.status) params.append('status', filters.status);
+      if (filters.assigned_to) params.append('assigned_to', filters.assigned_to);
+      if (filters.priority) params.append('priority', filters.priority);
+      if (filters.department) params.append('department', filters.department);
+      
+      const queryString = params.toString();
+      const url = queryString ? `/api/tasks?${queryString}` : '/api/tasks';
+      
+      const res = await authenticatedFetch(url);
       const data = await res.json();
       setTasks(data.tasks || []);
     } catch (err) {
@@ -97,6 +125,37 @@ export default function TasksPage() {
       console.error('Failed to fetch employees:', err);
     }
   };
+
+  const fetchDepartments = async () => {
+    try {
+      const res = await authenticatedFetch('/api/employees');
+      const data = await res.json();
+      if (data.employees) {
+        const uniqueDepts = [...new Set(data.employees.map(emp => emp.department).filter(Boolean))];
+        setDepartments(uniqueDepts.sort());
+      }
+    } catch (err) {
+      console.error('Failed to fetch departments:', err);
+    }
+  };
+
+  const handleFilterChange = (filterName, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterName]: value === 'all' ? '' : value
+    }));
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      status: '',
+      assigned_to: '',
+      priority: '',
+      department: ''
+    });
+  };
+
+  const hasActiveFilters = Object.values(filters).some(value => value !== '');
 
   const fetchUserRole = async () => {
     try {
@@ -268,6 +327,117 @@ export default function TasksPage() {
           Create Task
         </Button>
       </div>
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Filter className="h-5 w-5 text-muted-foreground" />
+            <h3 className="text-lg font-semibold">Filters</h3>
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="ml-auto gap-2"
+              >
+                <XCircle className="h-4 w-4" />
+                Clear Filters
+              </Button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="filter-status" className="text-sm font-medium">
+                Status
+              </Label>
+              <Select
+                value={filters.status || 'all'}
+                onValueChange={(value) => handleFilterChange('status', value)}
+              >
+                <SelectTrigger id="filter-status" className="h-10">
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="filter-priority" className="text-sm font-medium">
+                Priority
+              </Label>
+              <Select
+                value={filters.priority || 'all'}
+                onValueChange={(value) => handleFilterChange('priority', value)}
+              >
+                <SelectTrigger id="filter-priority" className="h-10">
+                  <SelectValue placeholder="All Priorities" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priorities</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="filter-assigned" className="text-sm font-medium">
+                Assigned To
+              </Label>
+              <Select
+                value={filters.assigned_to || 'all'}
+                onValueChange={(value) => handleFilterChange('assigned_to', value)}
+              >
+                <SelectTrigger id="filter-assigned" className="h-10">
+                  <SelectValue placeholder="All Employees" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Employees</SelectItem>
+                  {employees
+                    .filter(emp => emp.role !== 'Super Admin' && emp.is_active !== 0)
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map(emp => (
+                      <SelectItem key={emp.id} value={emp.id.toString()}>
+                        {emp.name} {emp.department ? `(${emp.department})` : ''}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="filter-department" className="text-sm font-medium">
+                Department
+              </Label>
+              <Select
+                value={filters.department || 'all'}
+                onValueChange={(value) => handleFilterChange('department', value)}
+              >
+                <SelectTrigger id="filter-department" className="h-10">
+                  <SelectValue placeholder="All Departments" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Departments</SelectItem>
+                  {departments.map(dept => (
+                    <SelectItem key={dept} value={dept}>
+                      {dept}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {tasks.length === 0 ? (
         <Card>

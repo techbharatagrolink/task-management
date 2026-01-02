@@ -15,6 +15,8 @@ export async function GET(request) {
     const status = searchParams.get('status');
     const assignedTo = searchParams.get('assigned_to');
     const createdBy = searchParams.get('created_by');
+    const priority = searchParams.get('priority');
+    const department = searchParams.get('department');
 
     let sql = `
       SELECT t.*, 
@@ -66,6 +68,16 @@ export async function GET(request) {
     if (createdBy) {
       sql += ' AND t.created_by = ?';
       params.push(createdBy);
+    }
+
+    if (priority) {
+      sql += ' AND t.priority = ?';
+      params.push(priority);
+    }
+
+    if (department) {
+      sql += ` AND ta.user_id IN (SELECT id FROM users WHERE department = ?)`;
+      params.push(department);
     }
 
     sql += ' GROUP BY t.id ORDER BY t.created_at DESC';
