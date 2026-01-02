@@ -90,8 +90,13 @@ export default function TaskDetailsPage() {
       // Format deadline for datetime-local input
       let deadlineValue = '';
       if (task.deadline) {
-        const deadlineDate = new Date(task.deadline);
-        // Convert to local datetime-local format (YYYY-MM-DDTHH:mm)
+        // Normalize the deadline string - treat as UTC if no timezone info
+        let deadlineStr = task.deadline.includes('T') ? task.deadline : task.deadline.replace(' ', 'T');
+        if (!deadlineStr.endsWith('Z') && !deadlineStr.includes('+') && !deadlineStr.match(/-\d{2}:\d{2}$/)) {
+          deadlineStr += 'Z'; // Treat as UTC (DB stores UTC)
+        }
+        const deadlineDate = new Date(deadlineStr);
+        // Convert UTC to local datetime-local format (YYYY-MM-DDTHH:mm)
         const year = deadlineDate.getFullYear();
         const month = String(deadlineDate.getMonth() + 1).padStart(2, '0');
         const day = String(deadlineDate.getDate()).padStart(2, '0');
@@ -251,9 +256,13 @@ export default function TaskDetailsPage() {
     setError('');
     
     try {
-      // Send the datetime-local value directly (no UTC conversion)
-      // This preserves the user's intended local time
+      // Convert datetime-local to UTC ISO string for consistent storage
       const updateData = { ...editFormData };
+      if (updateData.deadline) {
+        // datetime-local gives local time - convert to UTC for storage
+        const localDate = new Date(updateData.deadline);
+        updateData.deadline = localDate.toISOString();
+      }
       
       const res = await authenticatedFetch(`/api/tasks/${task.id}`, {
         method: 'PUT',
@@ -317,13 +326,17 @@ export default function TaskDetailsPage() {
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
-    // Handle both ISO format and datetime-local format
-    // Replace space with T if needed for consistent parsing
-    const normalizedString = dateString.includes('T') ? dateString : dateString.replace(' ', 'T');
+    // Normalize the date string and treat as UTC if no timezone info
+    let normalizedString = dateString.includes('T') ? dateString : dateString.replace(' ', 'T');
+    // If no timezone info, append Z to treat as UTC (DB stores UTC)
+    if (!normalizedString.endsWith('Z') && !normalizedString.includes('+') && !normalizedString.match(/-\d{2}:\d{2}$/)) {
+      normalizedString += 'Z';
+    }
     const date = new Date(normalizedString);
     // Check if date is valid
     if (isNaN(date.getTime())) return 'N/A';
-    return date.toLocaleDateString('en-US', {
+    // toLocaleString will convert UTC to user's local timezone
+    return date.toLocaleString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',

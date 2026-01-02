@@ -155,9 +155,13 @@ export default function TasksPage() {
     setSubmitting(true);
     
     try {
-      // Send the datetime-local value directly (no UTC conversion)
-      // This preserves the user's intended local time
+      // Convert datetime-local to UTC ISO string for consistent storage
       const taskData = { ...formData };
+      if (taskData.deadline) {
+        // datetime-local gives local time - convert to UTC for storage
+        const localDate = new Date(taskData.deadline);
+        taskData.deadline = localDate.toISOString();
+      }
       
       const res = await authenticatedFetch('/api/tasks', {
         method: 'POST',

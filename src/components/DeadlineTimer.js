@@ -17,30 +17,19 @@ export default function DeadlineTimer({ deadline, status, className }) {
     const calculateTimeRemaining = () => {
       const now = new Date();
       
-      // Parse deadline - handle UTC ISO strings (from database) and datetime-local format
+      // Parse deadline - DB stores UTC, so treat values without timezone as UTC
       let deadlineDate;
       
       if (typeof deadline === 'string') {
-        // If it's a UTC ISO string (ends with Z), parse it directly
-        if (deadline.endsWith('Z') || deadline.includes('+') || deadline.match(/-\d{2}:\d{2}$/)) {
-          // It's an ISO string with timezone info - parse as UTC
-          deadlineDate = new Date(deadline);
-        } else if (deadline.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?(\.\d{3})?$/)) {
-          // It's a datetime format without timezone (datetime-local format)
-          // Parse as local time by creating date components manually
-          const [datePart, timePart] = deadline.split('T');
-          const [year, month, day] = datePart.split('-').map(Number);
-          const timeParts = timePart.split(':');
-          const hours = Number(timeParts[0]);
-          const minutes = Number(timeParts[1]);
-          const seconds = timeParts[2] ? Number(timeParts[2].split('.')[0]) : 0;
-          
-          // Create date in local timezone
-          deadlineDate = new Date(year, month - 1, day, hours, minutes, seconds);
-        } else {
-          // Fallback: try parsing as-is
-          deadlineDate = new Date(deadline);
+        // Normalize the string - replace space with T for MySQL datetime format
+        let deadlineStr = deadline.includes('T') ? deadline : deadline.replace(' ', 'T');
+        
+        // If no timezone info, append Z to treat as UTC (DB stores UTC)
+        if (!deadlineStr.endsWith('Z') && !deadlineStr.includes('+') && !deadlineStr.match(/-\d{2}:\d{2}$/)) {
+          deadlineStr += 'Z';
         }
+        
+        deadlineDate = new Date(deadlineStr);
       } else {
         deadlineDate = new Date(deadline);
       }
