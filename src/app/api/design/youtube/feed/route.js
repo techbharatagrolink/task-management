@@ -1,6 +1,6 @@
 // YouTube feed API - Proxy for external YouTube API
 import { NextResponse } from 'next/server';
-import { verifyAuth, hasPermission } from '@/lib/auth';
+import { verifyAuth } from '@/lib/auth';
 
 const YOUTUBE_CHANNEL_ID = 'UCT0hk8wAizrLKXW62D_N3Jg';
 const YOUTUBE_API_BASE_URL = 'https://www.googleapis.com/youtube/v3/search';
@@ -11,10 +11,6 @@ export async function GET(request) {
     const user = await verifyAuth(request);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    if (!hasPermission(user.role, ['Super Admin', 'Admin', 'Design & Content Team'])) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const apiKey = process.env.YOUTUBE_API_KEY;

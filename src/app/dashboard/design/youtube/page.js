@@ -5,8 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Video, ExternalLink, Calendar, Clock, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import NoData from '@/components/NoData';
-import AccessDenied from '@/components/AccessDenied';
-import { hasRoleAccess } from '@/lib/roleCheck';
 import { authenticatedFetch } from '@/lib/auth-client';
 
 export default function YouTubePage() {
@@ -26,10 +24,6 @@ export default function YouTubePage() {
       const data = await res.json();
       if (data.authenticated) {
         setUser(data.user);
-        if (!hasRoleAccess(data.user.role, ['Design & Content Team', 'Super Admin', 'Admin'])) {
-          setLoading(false);
-          return;
-        }
       }
     } catch (err) {
       console.error('Failed to fetch user:', err);
@@ -97,10 +91,6 @@ export default function YouTubePage() {
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
       </div>
     );
-  }
-
-  if (!user || !hasRoleAccess(user.role, ['Design & Content Team', 'Super Admin', 'Admin'])) {
-    return <AccessDenied message="This page is only accessible to Design & Content Team, Admin, and Super Admin." />;
   }
 
   if (error) {

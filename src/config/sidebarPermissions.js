@@ -171,14 +171,14 @@ export const sidebarItems = {
     name: 'YouTube',
     icon: Video,
     href: '/dashboard/design/youtube',
-    roles: ['Super Admin', 'Admin', 'Design & Content Team'],
+    roles: ['all'],
     category: 'Content Management',
   },
   instagram: {
     name: 'Instagram',
     icon: Instagram,
     href: '/dashboard/design/instagram',
-    roles: ['Super Admin', 'Admin', 'Design & Content Team'],
+    roles: ['all'],
     category: 'Content Management',
   },
   notifications: {

@@ -1,6 +1,6 @@
 // Instagram feed API - Proxy for external Behold.so API
 import { NextResponse } from 'next/server';
-import { verifyAuth, hasPermission } from '@/lib/auth';
+import { verifyAuth } from '@/lib/auth';
 
 const INSTAGRAM_FEED_API = 'https://feeds.behold.so/n6p92l3vvzszmv2469km';
 
@@ -10,10 +10,6 @@ export async function GET(request) {
     const user = await verifyAuth(request);
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    if (!hasPermission(user.role, ['Super Admin', 'Admin', 'Design & Content Team'])) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Fetch from external API

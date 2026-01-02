@@ -542,13 +542,14 @@ export default function TasksPage() {
 
             {/* Subtasks Section */}
             <div className="space-y-4 p-4 bg-gray-50 rounded-lg border">
-              <div className="flex items-center justify-between pb-2">
+              <div className="flex items-center justify-between pb-0">
                 <div className="flex items-center gap-2">
                   <ListChecks className="h-5 w-5 text-primary" />
                   <h3 className="text-lg font-semibold text-foreground">Subtasks</h3>
                 </div>
                 <Badge variant="secondary">{formData.subtasks.length} Added</Badge>
               </div>
+                  <p className="text-xs text-muted-foreground">[It is Mandatory to add Subtasks for Completion Status]</p>
               <Separator className="mb-4" />
 
               {/* Add Subtask */}
