@@ -90,11 +90,15 @@ export default function KRAPage() {
   const fetchKRADefinitions = async () => {
     setLoading(true);
     try {
-      // For managers viewing team member, use team member's role, otherwise use manager's role
-      const roleToFetch = isManager && selectedTeamMember 
-        ? selectedTeamMember.role 
-        : userRole;
-      const res = await authenticatedFetch(`/api/kra/definitions?role=${encodeURIComponent(roleToFetch)}`);
+      // For managers viewing team member, use team member's user_id, otherwise use current user's id
+      const userIdToFetch = isManager && selectedTeamMember 
+        ? selectedTeamMember.id 
+        : userInfo?.id;
+      if (!userIdToFetch) {
+        setLoading(false);
+        return;
+      }
+      const res = await authenticatedFetch(`/api/kra/definitions?user_id=${userIdToFetch}`);
       const data = await res.json();
       setKraDefinitions(data.definitions || []);
 
@@ -278,10 +282,14 @@ export default function KRAPage() {
           </CardHeader>
           <CardContent>
             <Select
-              value={selectedTeamMember?.id?.toString() || ''}
+              value={selectedTeamMember?.id?.toString() || 'self'}
               onValueChange={(value) => {
-                const member = teamMembers.find(m => m.id.toString() === value);
-                setSelectedTeamMember(member || null);
+                if (value === 'self') {
+                  setSelectedTeamMember(null);
+                } else {
+                  const member = teamMembers.find(m => m.id.toString() === value);
+                  setSelectedTeamMember(member || null);
+                }
                 setSubmissions({});
                 setExistingSubmissions([]);
               }}
@@ -290,7 +298,7 @@ export default function KRAPage() {
                 <SelectValue placeholder="Select a team member" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">My Own KRA</SelectItem>
+                <SelectItem value="self">My Own KRA</SelectItem>
                 {teamMembers.map(member => (
                   <SelectItem key={member.id} value={member.id.toString()}>
                     {member.name} ({member.role})

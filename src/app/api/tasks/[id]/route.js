@@ -36,7 +36,6 @@ export async function GET(request, { params }) {
     
     // Super Admin, Admin, and HR can view all tasks
     let canView = hasPermission(user.role, ['Super Admin', 'Admin', 'HR']) ||
-                  task.created_by === user.id ||
                   assignedUserIds.includes(user.id);
     
     // Managers can only view tasks they created, are assigned to, or assigned to their team members
@@ -60,6 +59,16 @@ export async function GET(request, { params }) {
         // No assigned users, manager can only view if they created it
         canView = task.created_by === user.id;
       }
+    }
+    
+    // Employees and other roles (not Super Admin, Admin, Manager, HR, Developer, Operations, Design & Content Team) 
+    // can only view tasks they are assigned to
+    if (!hasPermission(user.role, ['Super Admin', 'Admin', 'Manager', 'HR']) && 
+        !user.role?.includes('Developer') && 
+        !user.role?.includes('Operations') && 
+        !user.role?.includes('Operation') && 
+        user.role !== 'Design & Content Team') {
+      canView = assignedUserIds.includes(user.id);
     }
 
     if (!canView) {

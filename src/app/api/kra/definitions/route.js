@@ -12,22 +12,36 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const role = searchParams.get('role');
+    const role = searchParams.get('role'); // Keep for backward compatibility
+    const userId = searchParams.get('user_id');
     const includeInactive = searchParams.get('include_inactive') === 'true';
 
-    let sql = 'SELECT * FROM kra_definitions WHERE 1=1';
+    let sql = `
+      SELECT 
+        kd.*,
+        u.name as user_name,
+        u.email as user_email,
+        u.role as user_role
+      FROM kra_definitions kd
+      LEFT JOIN users u ON kd.user_id = u.id
+      WHERE 1=1
+    `;
     const params = [];
 
     if (!includeInactive) {
-      sql += ' AND is_active = 1';
+      sql += ' AND kd.is_active = 1';
     }
 
-    if (role) {
-      sql += ' AND role = ?';
-      params.push(role);
+    if (userId) {
+      sql += ' AND kd.user_id = ?';
+      params.push(userId);
+    } else if (role) {
+      // Backward compatibility: if user_id not provided, filter by role
+      sql += ' AND (kd.role = ? OR u.role = ?)';
+      params.push(role, role);
     }
 
-    sql += ' ORDER BY role, kra_number ASC';
+    sql += ' ORDER BY kd.user_id, kd.kra_number ASC';
 
     const definitions = await query(sql, params);
 
@@ -62,7 +76,8 @@ export async function POST(request) {
     const body = await request.json();
     const {
       id,
-      role,
+      user_id,
+      role, // Keep for backward compatibility
       kra_number,
       kra_name,
       weight_percentage,
@@ -77,13 +92,30 @@ export async function POST(request) {
       is_active = 1
     } = body;
 
-    if (!role || !kra_number || !kra_name || !weight_percentage) {
+    // Validate required fields
+    if (!user_id || !kra_number || !kra_name || !weight_percentage) {
       await connection.rollback();
       return NextResponse.json(
-        { error: 'Role, KRA number, name, and weight are required' },
+        { error: 'User, KRA number, name, and weight are required' },
         { status: 400 }
       );
     }
+
+    // Validate user exists
+    const [users] = await connection.execute(
+      'SELECT id, name, role FROM users WHERE id = ? AND role != ?',
+      [user_id, 'Super Admin']
+    );
+
+    if (users.length === 0) {
+      await connection.rollback();
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    const userRole = users[0].role; // Store user's role for backward compatibility
 
     // Convert rating labels to JSON string if it's an object
     // If object is empty or all values are empty, store NULL
@@ -111,13 +143,13 @@ export async function POST(request) {
       // Update existing
       await connection.execute(
         `UPDATE kra_definitions SET
-          role = ?, kra_number = ?, kra_name = ?, weight_percentage = ?,
+          user_id = ?, role = ?, kra_number = ?, kra_name = ?, weight_percentage = ?,
           kpi_1_name = ?, kpi_1_target = ?, kpi_1_scale = ?, kpi_1_rating_labels = ?,
           kpi_2_name = ?, kpi_2_target = ?, kpi_2_scale = ?, kpi_2_rating_labels = ?,
           is_active = ?, updated_at = CURRENT_TIMESTAMP
          WHERE id = ?`,
         [
-          role, kra_number, kra_name, weight_percentage,
+          user_id, userRole, kra_number, kra_name, weight_percentage,
           kpi_1_name || null, kpi_1_target || null, kpi_1_scale || null, kpi1Labels || null,
           kpi_2_name || null, kpi_2_target || null, kpi_2_scale || null, kpi2Labels || null,
           is_active ? 1 : 0, id
@@ -127,13 +159,13 @@ export async function POST(request) {
       // Create new
       const [result] = await connection.execute(
         `INSERT INTO kra_definitions 
-         (role, kra_number, kra_name, weight_percentage,
+         (user_id, role, kra_number, kra_name, weight_percentage,
           kpi_1_name, kpi_1_target, kpi_1_scale, kpi_1_rating_labels,
           kpi_2_name, kpi_2_target, kpi_2_scale, kpi_2_rating_labels,
           is_active)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          role, kra_number, kra_name, weight_percentage,
+          user_id, userRole, kra_number, kra_name, weight_percentage,
           kpi_1_name || null, kpi_1_target || null, kpi_1_scale || null, kpi1Labels || null,
           kpi_2_name || null, kpi_2_target || null, kpi_2_scale || null, kpi2Labels || null,
           is_active ? 1 : 0

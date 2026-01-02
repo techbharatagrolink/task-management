@@ -31,9 +31,11 @@ export default function Home() {
               'App Developer': '/dashboard/developer',
               'Digital Marketing': '/dashboard/marketing',
               'Logistics': '/dashboard/logistics',
-              'Design & Content Team': '/dashboard/design'
+              'Design & Content Team': '/dashboard/design',
+              'Employee': '/dashboard/employee',
+              'Intern': '/dashboard/employee'
             };
-            router.push(roleRoutes[role] || '/dashboard/admin');
+            router.push(roleRoutes[role] || '/dashboard/employee');
           }
         } else {
           // Not logged in, redirect to login

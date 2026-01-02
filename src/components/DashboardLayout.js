@@ -191,7 +191,7 @@ export default function DashboardLayout({ children, user }) {
                 <div className="hidden sm:flex flex-col items-start text-left">
                   <span className="text-sm font-medium leading-tight">{currentUser?.name || 'User'}</span>
                   <span className="text-xs text-muted-foreground leading-tight">
-                    {currentUser?.role === 'Super Admin' ? 'Owner' : currentUser?.role || 'Role'}
+                    {currentUser?.designation || currentUser?.role || 'Employee'}
                   </span>
                 </div>
                 <ChevronDown className={cn(

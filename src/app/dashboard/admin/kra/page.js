@@ -29,11 +29,11 @@ export default function AdminKRAPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [kraDefinitions, setKraDefinitions] = useState([]);
-  const [roles, setRoles] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [editingKra, setEditingKra] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
-    role: '',
+    user_id: '',
     kra_number: '',
     kra_name: '',
     weight_percentage: '',
@@ -62,7 +62,7 @@ export default function AdminKRAPage() {
 
   useEffect(() => {
     fetchKRADefinitions();
-    fetchRoles();
+    fetchEmployees();
   }, []);
 
   const fetchKRADefinitions = async () => {
@@ -79,14 +79,17 @@ export default function AdminKRAPage() {
     }
   };
 
-  const fetchRoles = async () => {
+  const fetchEmployees = async () => {
     try {
       const res = await authenticatedFetch('/api/employees');
       const data = await res.json();
-      const uniqueRoles = [...new Set(data.employees?.map(emp => emp.role) || [])].sort();
-      setRoles(uniqueRoles);
+      // Filter out Super Admin and sort by name
+      const filteredEmployees = (data.employees || [])
+        .filter(emp => emp.role !== 'Super Admin')
+        .sort((a, b) => a.name.localeCompare(b.name));
+      setEmployees(filteredEmployees);
     } catch (err) {
-      console.error('Failed to fetch roles:', err);
+      console.error('Failed to fetch employees:', err);
     }
   };
 
@@ -117,7 +120,7 @@ export default function AdminKRAPage() {
 
     setFormData({
       id: kra.id,
-      role: kra.role || '',
+      user_id: kra.user_id ? kra.user_id.toString() : '',
       kra_number: kra.kra_number || '',
       kra_name: kra.kra_name || '',
       weight_percentage: kra.weight_percentage || '',
@@ -137,7 +140,7 @@ export default function AdminKRAPage() {
 
   const handleNew = () => {
     setFormData({
-      role: '',
+      user_id: '',
       kra_number: '',
       kra_name: '',
       weight_percentage: '',
@@ -264,15 +267,22 @@ export default function AdminKRAPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <CardTitle>
-                      {kra.role} - KRA {kra.kra_number}: {kra.kra_name}
+                      {kra.user_name || 'Unknown User'} - KRA {kra.kra_number}: {kra.kra_name}
                     </CardTitle>
                     {kra.is_active === 0 && (
                       <Badge variant="secondary">Inactive</Badge>
                     )}
                   </div>
-                  <Badge variant="secondary" className="mt-2">
-                    Weight: {kra.weight_percentage}%
-                  </Badge>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Badge variant="secondary">
+                      Weight: {kra.weight_percentage}%
+                    </Badge>
+                    {kra.user_email && (
+                      <Badge variant="outline" className="text-xs">
+                        {kra.user_email} {kra.user_role ? `(${kra.user_role})` : ''}
+                      </Badge>
+                    )}
+                  </div>
                   {kra.kpi_1_name && (
                     <div className="mt-3 space-y-1">
                       <p className="text-sm font-medium">• {kra.kpi_1_name}</p>
@@ -320,14 +330,16 @@ export default function AdminKRAPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="role">Role <span className="text-destructive">*</span></Label>
-                <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })}>
-                  <SelectTrigger id="role">
-                    <SelectValue placeholder="Select role" />
+                <Label htmlFor="user_id">User <span className="text-destructive">*</span></Label>
+                <Select value={formData.user_id} onValueChange={(value) => setFormData({ ...formData, user_id: value })}>
+                  <SelectTrigger id="user_id">
+                    <SelectValue placeholder="Select user" />
                   </SelectTrigger>
                   <SelectContent>
-                    {roles.map(role => (
-                      <SelectItem key={role} value={role}>{role}</SelectItem>
+                    {employees.map(emp => (
+                      <SelectItem key={emp.id} value={emp.id.toString()}>
+                        {emp.name} - {emp.email} {emp.department ? `(${emp.department})` : ''} {emp.role ? `[${emp.role}]` : ''}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

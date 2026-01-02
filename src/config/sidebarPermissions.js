@@ -243,7 +243,8 @@ function getRolePath(role) {
   if (role === 'Digital Marketing') return 'marketing';
   if (role === 'Design & Content Team') return 'design';
   if (role?.includes('Operations')) return 'operations';
-  return 'dashboard';
+  if (role === 'Employee' || role === 'Intern') return 'employee';
+  return 'employee'; // Default to employee dashboard for unknown roles
 }
 
 // Check if a role has access to a sidebar item

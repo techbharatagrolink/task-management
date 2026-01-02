@@ -43,6 +43,16 @@ export async function GET(request) {
       params.push(user.id, user.id, user.id);
     }
 
+    // Employees and other roles (not Super Admin, Admin, Manager, HR) can only see tasks assigned to them
+    if (!hasPermission(user.role, ['Super Admin', 'Admin', 'Manager', 'HR']) && 
+        !user.role?.includes('Developer') && 
+        !user.role?.includes('Operations') && 
+        !user.role?.includes('Operation') && 
+        user.role !== 'Design & Content Team') {
+      sql += ' AND ta.user_id = ?';
+      params.push(user.id);
+    }
+
     if (status) {
       sql += ' AND t.status = ?';
       params.push(status);

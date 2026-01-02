@@ -5,14 +5,12 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-// import Link from 'next/link';
 import DeadlineTimer from '@/components/DeadlineTimer';
 import { CheckSquare, ListChecks, Clock, TrendingUp, ArrowRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import KPICard from '@/components/ui/kpi-card';
 
 import { authenticatedFetch } from '@/lib/auth-client';
-export default function DeveloperDashboard() {
+export default function EmployeeDashboard() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [attendance, setAttendance] = useState(null);
@@ -85,27 +83,6 @@ export default function DeveloperDashboard() {
     return kpiMetrics.find(m => m.kpi_id === kpiId) || null;
   };
 
-  const getPriorityColor = (priority) => {
-    const colors = {
-      low: 'bg-gray-100 text-gray-800',
-      medium: 'bg-blue-100 text-blue-800',
-      high: 'bg-orange-100 text-orange-800',
-      critical: 'bg-red-100 text-red-800'
-    };
-    return colors[priority] || colors.medium;
-  };
-
-  const getStatusColor = (status) => {
-    const colors = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      in_progress: 'bg-blue-100 text-blue-800',
-      completed: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800'
-    };
-    return colors[status] || colors.pending;
-  };
-
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -119,7 +96,7 @@ export default function DeveloperDashboard() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Developer Dashboard</h1>
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">My Dashboard</h1>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

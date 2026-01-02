@@ -78,7 +78,7 @@ export async function GET(request) {
   }
 }
 
-// Upload employee document
+// Upload employee document(s)
 export async function POST(request) {
   const connection = await getConnection();
   try {
@@ -98,19 +98,74 @@ export async function POST(request) {
     }
 
     const formData = await request.formData();
-    const file = formData.get('file');
     const employeeId = formData.get('employee_id');
-    const documentName = formData.get('document_name');
-    const documentDate = formData.get('document_date');
-    const description = formData.get('description');
+    
+    // Get all files (support both single and multiple uploads)
+    const files = formData.getAll('files');
+    const documentNames = formData.getAll('document_names');
+    const documentDates = formData.getAll('document_dates');
+    const descriptions = formData.getAll('descriptions');
+
+    // Support legacy single file upload format
+    const legacyFile = formData.get('file');
+    const legacyDocumentName = formData.get('document_name');
+    const legacyDocumentDate = formData.get('document_date');
+    const legacyDescription = formData.get('description');
+
+    let filesToProcess = [];
+    
+    if (legacyFile) {
+      // Legacy single file format
+      filesToProcess = [{
+        file: legacyFile,
+        documentName: legacyDocumentName,
+        documentDate: legacyDocumentDate,
+        description: legacyDescription
+      }];
+    } else {
+      // New multiple files format
+      if (files.length === 0) {
+        await connection.rollback();
+        return NextResponse.json(
+          { error: 'At least one file is required' },
+          { status: 400 }
+        );
+      }
+
+      if (files.length !== documentNames.length) {
+        await connection.rollback();
+        return NextResponse.json(
+          { error: 'Number of files must match number of document names' },
+          { status: 400 }
+        );
+      }
+
+      filesToProcess = files.map((file, index) => ({
+        file,
+        documentName: documentNames[index] || '',
+        documentDate: documentDates[index] || '',
+        description: descriptions[index] || ''
+      }));
+    }
 
     // Validate required fields
-    if (!file || !employeeId || !documentName) {
+    if (!employeeId) {
       await connection.rollback();
       return NextResponse.json(
-        { error: 'File, employee ID, and document name are required' },
+        { error: 'Employee ID is required' },
         { status: 400 }
       );
+    }
+
+    // Validate all files have document names
+    for (const fileEntry of filesToProcess) {
+      if (!fileEntry.documentName || fileEntry.documentName.trim() === '') {
+        await connection.rollback();
+        return NextResponse.json(
+          { error: 'All files must have a document name' },
+          { status: 400 }
+        );
+      }
     }
 
     // Validate employee exists
@@ -127,74 +182,86 @@ export async function POST(request) {
       );
     }
 
-    // Convert file to buffer
-    const arrayBuffer = await file.arrayBuffer();
-    const fileBuffer = Buffer.from(arrayBuffer);
-
-    // Generate unique file key
+    const uploadedDocuments = [];
     const timestamp = Date.now();
-    const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const fileKey = `employee-documents/${employeeId}/${timestamp}-${sanitizedFileName}`;
 
-    // Get file type
-    const fileType = file.type || 'application/octet-stream';
+    // Process each file
+    for (let i = 0; i < filesToProcess.length; i++) {
+      const { file, documentName, documentDate, description } = filesToProcess[i];
 
-    // Upload to R2
-    await uploadToR2(fileBuffer, fileKey, fileType);
+      // Convert file to buffer
+      const arrayBuffer = await file.arrayBuffer();
+      const fileBuffer = Buffer.from(arrayBuffer);
 
-    // Save metadata to database
-    const [result] = await connection.execute(
-      `INSERT INTO employee_documents 
-       (employee_id, document_name, original_file_name, file_key, file_size, file_type, document_date, description, uploaded_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        employeeId,
-        documentName,
-        file.name,
-        fileKey,
-        fileBuffer.length,
-        fileType,
-        documentDate || null,
-        description || null,
-        user.id
-      ]
-    );
+      // Generate unique file key
+      const fileTimestamp = timestamp + i; // Ensure uniqueness
+      const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const fileKey = `employee-documents/${employeeId}/${fileTimestamp}-${sanitizedFileName}`;
 
-    // Fetch the created document record
-    const [documentResults] = await connection.execute(
-      `SELECT 
-        ed.id,
-        ed.employee_id,
-        ed.document_name,
-        ed.original_file_name,
-        ed.file_key,
-        ed.file_size,
-        ed.file_type,
-        ed.document_date,
-        ed.description,
-        ed.uploaded_by,
-        ed.created_at,
-        e.name as employee_name,
-        e.email as employee_email,
-        u.name as uploaded_by_name
-       FROM employee_documents ed
-       INNER JOIN users e ON ed.employee_id = e.id
-       INNER JOIN users u ON ed.uploaded_by = u.id
-       WHERE ed.id = ?`,
-      [result.insertId]
-    );
+      // Get file type
+      const fileType = file.type || 'application/octet-stream';
+
+      // Upload to R2
+      await uploadToR2(fileBuffer, fileKey, fileType);
+
+      // Save metadata to database
+      const [result] = await connection.execute(
+        `INSERT INTO employee_documents 
+         (employee_id, document_name, original_file_name, file_key, file_size, file_type, document_date, description, uploaded_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          employeeId,
+          documentName,
+          file.name,
+          fileKey,
+          fileBuffer.length,
+          fileType,
+          documentDate || null,
+          description || null,
+          user.id
+        ]
+      );
+
+      // Fetch the created document record
+      const [documentResults] = await connection.execute(
+        `SELECT 
+          ed.id,
+          ed.employee_id,
+          ed.document_name,
+          ed.original_file_name,
+          ed.file_key,
+          ed.file_size,
+          ed.file_type,
+          ed.document_date,
+          ed.description,
+          ed.uploaded_by,
+          ed.created_at,
+          e.name as employee_name,
+          e.email as employee_email,
+          u.name as uploaded_by_name
+         FROM employee_documents ed
+         INNER JOIN users e ON ed.employee_id = e.id
+         INNER JOIN users u ON ed.uploaded_by = u.id
+         WHERE ed.id = ?`,
+        [result.insertId]
+      );
+
+      uploadedDocuments.push(documentResults[0]);
+    }
 
     await connection.commit();
 
     // Log activity
+    const documentNamesList = uploadedDocuments.map(d => d.document_name).join(', ');
     await query(
       'INSERT INTO activity_logs (user_id, action, module, details) VALUES (?, ?, ?, ?)',
-      [user.id, 'upload_employee_document', 'employee_documents', `Uploaded document: ${documentName} for employee ID: ${employeeId}`]
+      [user.id, 'upload_employee_document', 'employee_documents', `Uploaded ${uploadedDocuments.length} document(s): ${documentNamesList} for employee ID: ${employeeId}`]
     );
 
     return NextResponse.json({
       success: true,
-      document: documentResults[0]
+      documents: uploadedDocuments,
+      count: uploadedDocuments.length
     });
   } catch (error) {
     await connection.rollback();
