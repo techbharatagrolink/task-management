@@ -42,7 +42,10 @@ import {
   Circle,
   Trash2,
   Edit,
-  X
+  X,
+  Plus,
+  Pencil,
+  Save
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { authenticatedFetch } from '@/lib/auth-client';
@@ -73,6 +76,13 @@ export default function TaskDetailsPage() {
     assigned_users: []
   });
   const [employees, setEmployees] = useState([]);
+  
+  // Subtask editing states
+  const [editSubtasks, setEditSubtasks] = useState([]);
+  const [newSubtask, setNewSubtask] = useState({ title: '', description: '' });
+  const [editingSubtaskId, setEditingSubtaskId] = useState(null);
+  const [editingSubtaskData, setEditingSubtaskData] = useState({ title: '', description: '' });
+  const [subtaskLoading, setSubtaskLoading] = useState(false);
 
   useEffect(() => {
     if (taskId) {
@@ -114,6 +124,11 @@ export default function TaskDetailsPage() {
         progress: task.progress || 0,
         assigned_users: assignedIds
       });
+      
+      // Set subtasks for editing
+      setEditSubtasks(task.subtasks ? [...task.subtasks] : []);
+      setNewSubtask({ title: '', description: '' });
+      setEditingSubtaskId(null);
     }
   }, [task, editDialogOpen]);
 
@@ -283,6 +298,119 @@ export default function TaskDetailsPage() {
       setError('Network error. Please try again.');
     } finally {
       setEditing(false);
+    }
+  };
+
+  // Subtask handlers
+  const handleAddSubtask = async () => {
+    if (!newSubtask.title.trim() || !task) return;
+    
+    setSubtaskLoading(true);
+    try {
+      const res = await authenticatedFetch(`/api/tasks/${task.id}/subtasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSubtask),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        // Add the new subtask to the list
+        setEditSubtasks(prev => [...prev, {
+          id: data.subtask.id,
+          title: newSubtask.title.trim(),
+          description: newSubtask.description?.trim() || null,
+          status: 'pending',
+          progress: 0
+        }]);
+        setNewSubtask({ title: '', description: '' });
+        // Refresh task details to get updated progress
+        await fetchTaskDetails();
+      } else {
+        setError(data.error || 'Failed to add subtask');
+      }
+    } catch (err) {
+      console.error('Failed to add subtask:', err);
+      setError('Network error. Please try again.');
+    } finally {
+      setSubtaskLoading(false);
+    }
+  };
+
+  const handleStartEditSubtask = (subtask) => {
+    setEditingSubtaskId(subtask.id);
+    setEditingSubtaskData({
+      title: subtask.title,
+      description: subtask.description || ''
+    });
+  };
+
+  const handleCancelEditSubtask = () => {
+    setEditingSubtaskId(null);
+    setEditingSubtaskData({ title: '', description: '' });
+  };
+
+  const handleSaveSubtask = async (subtaskId) => {
+    if (!editingSubtaskData.title.trim() || !task) return;
+    
+    setSubtaskLoading(true);
+    try {
+      const res = await authenticatedFetch(`/api/tasks/${task.id}/subtasks`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subtask_id: subtaskId,
+          title: editingSubtaskData.title.trim(),
+          description: editingSubtaskData.description?.trim() || null
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        // Update the subtask in the list
+        setEditSubtasks(prev => prev.map(st => 
+          st.id === subtaskId 
+            ? { ...st, title: editingSubtaskData.title.trim(), description: editingSubtaskData.description?.trim() || null }
+            : st
+        ));
+        setEditingSubtaskId(null);
+        setEditingSubtaskData({ title: '', description: '' });
+        // Refresh task details
+        await fetchTaskDetails();
+      } else {
+        setError(data.error || 'Failed to update subtask');
+      }
+    } catch (err) {
+      console.error('Failed to update subtask:', err);
+      setError('Network error. Please try again.');
+    } finally {
+      setSubtaskLoading(false);
+    }
+  };
+
+  const handleDeleteSubtask = async (subtaskId) => {
+    if (!task) return;
+    
+    setSubtaskLoading(true);
+    try {
+      const res = await authenticatedFetch(`/api/tasks/${task.id}/subtasks?subtask_id=${subtaskId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        // Remove the subtask from the list
+        setEditSubtasks(prev => prev.filter(st => st.id !== subtaskId));
+        // Refresh task details to get updated progress
+        await fetchTaskDetails();
+      } else {
+        setError(data.error || 'Failed to delete subtask');
+      }
+    } catch (err) {
+      console.error('Failed to delete subtask:', err);
+      setError('Network error. Please try again.');
+    } finally {
+      setSubtaskLoading(false);
     }
   };
 
@@ -951,6 +1079,197 @@ export default function TaskDetailsPage() {
                   <p className="text-xs text-muted-foreground">Hold Ctrl/Cmd to select multiple. Employees are grouped by role.</p>
                 </div>
               </div>
+            </div>
+
+            {/* Subtasks Section */}
+            <div className="space-y-4 p-4 bg-gray-50 rounded-lg border">
+              <div className="flex items-center justify-between pb-2">
+                <div className="flex items-center gap-2">
+                  <ListChecks className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold text-foreground">Subtasks</h3>
+                </div>
+                <Badge variant="secondary">{editSubtasks.length} Total</Badge>
+              </div>
+              <Separator className="mb-4" />
+
+              {/* Add New Subtask */}
+              <div className="space-y-2 p-3 bg-background rounded-lg border-2 border-dashed">
+                <Label className="text-sm font-medium">Add New Subtask</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <Input
+                    type="text"
+                    value={newSubtask.title}
+                    onChange={(e) => setNewSubtask({ ...newSubtask, title: e.target.value })}
+                    placeholder="Subtask title"
+                    disabled={subtaskLoading || editing}
+                    className="h-10"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddSubtask();
+                      }
+                    }}
+                  />
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      value={newSubtask.description}
+                      onChange={(e) => setNewSubtask({ ...newSubtask, description: e.target.value })}
+                      placeholder="Description (optional)"
+                      disabled={subtaskLoading || editing}
+                      className="h-10"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddSubtask();
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleAddSubtask}
+                      disabled={!newSubtask.title.trim() || subtaskLoading || editing}
+                      size="icon"
+                      className="h-10 w-10"
+                    >
+                      {subtaskLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Existing Subtasks List */}
+              {editSubtasks.length > 0 && (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {editSubtasks.map((subtask) => (
+                    <div
+                      key={subtask.id}
+                      className={cn(
+                        "flex items-start gap-3 p-3 bg-background rounded-lg border",
+                        subtask.status === 'completed' && "bg-green-50 border-green-200"
+                      )}
+                    >
+                      {editingSubtaskId === subtask.id ? (
+                        // Edit mode
+                        <div className="flex-1 space-y-2">
+                          <Input
+                            type="text"
+                            value={editingSubtaskData.title}
+                            onChange={(e) => setEditingSubtaskData({ ...editingSubtaskData, title: e.target.value })}
+                            placeholder="Subtask title"
+                            disabled={subtaskLoading}
+                            className="h-9"
+                            autoFocus
+                          />
+                          <Input
+                            type="text"
+                            value={editingSubtaskData.description}
+                            onChange={(e) => setEditingSubtaskData({ ...editingSubtaskData, description: e.target.value })}
+                            placeholder="Description (optional)"
+                            disabled={subtaskLoading}
+                            className="h-9"
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => handleSaveSubtask(subtask.id)}
+                              disabled={!editingSubtaskData.title.trim() || subtaskLoading}
+                              className="gap-1"
+                            >
+                              {subtaskLoading ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Save className="h-3 w-3" />
+                              )}
+                              Save
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={handleCancelEditSubtask}
+                              disabled={subtaskLoading}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        // View mode
+                        <>
+                          <div className={cn(
+                            "h-5 w-5 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center",
+                            subtask.status === 'completed' ? "bg-green-500" : "bg-gray-300"
+                          )}>
+                            {subtask.status === 'completed' && (
+                              <CheckCircle2 className="h-4 w-4 text-white" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={cn(
+                              "font-medium text-sm",
+                              subtask.status === 'completed' && "line-through text-muted-foreground"
+                            )}>
+                              {subtask.title}
+                            </p>
+                            {subtask.description && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {subtask.description}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge
+                                variant={subtask.status === 'completed' ? 'success' : 'outline'}
+                                className="text-xs"
+                              >
+                                {subtask.status?.replace('_', ' ') || 'pending'}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {subtask.progress || 0}%
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleStartEditSubtask(subtask)}
+                              disabled={subtaskLoading || editing}
+                              className="h-8 w-8"
+                              title="Edit subtask"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteSubtask(subtask.id)}
+                              disabled={subtaskLoading || editing}
+                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              title="Delete subtask"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {editSubtasks.length === 0 && (
+                <div className="text-center py-4 text-muted-foreground text-sm">
+                  No subtasks yet. Add subtasks above.
+                </div>
+              )}
             </div>
 
             <DialogFooter className="gap-2 sm:gap-0 pt-4 border-t bg-gray-50 -mx-6 -mb-6 px-6 pb-6 mt-6">

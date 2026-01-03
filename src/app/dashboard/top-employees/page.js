@@ -127,7 +127,7 @@ export default function TopEmployeesPage() {
           </p>
         </div>
         <Link href="/dashboard/employee-ratings">
-          <Button className="gap-2 bg-red text-white hover:bg-primary/80">
+          <Button className="gap-2">
             <Award className="h-4 w-4" />
             Submit Rating
           </Button>

@@ -220,7 +220,7 @@ export const sidebarItems = {
     name: 'Payslips',
     icon: FileText,
     href: '/dashboard/payslips',
-    roles: ['Super Admin', 'Admin', 'Manager', 'HR'],
+    roles: ['Super Admin', 'Admin', 'HR'],
     category: 'HR',
   },
   birthdayManagement: {
