@@ -172,6 +172,32 @@ export default function TasksPage() {
 
   const isAdmin = userRole === 'Super Admin' || userRole === 'Admin';
   const canDelete = isAdmin || userRole === 'Manager' || userRole === 'HR';
+  const canCreate = isAdmin || userRole === 'Manager' || userRole === 'HR';
+
+  // Get current IST time in datetime-local format (YYYY-MM-DDTHH:mm)
+  const getCurrentISTDateTime = () => {
+    const now = new Date();
+    // Get IST time components using Intl.DateTimeFormat
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+    
+    const parts = formatter.formatToParts(now);
+    const year = parts.find(p => p.type === 'year').value;
+    const month = parts.find(p => p.type === 'month').value;
+    const day = parts.find(p => p.type === 'day').value;
+    const hour = parts.find(p => p.type === 'hour').value;
+    const minute = parts.find(p => p.type === 'minute').value;
+    
+    // Format as datetime-local (YYYY-MM-DDTHH:mm)
+    return `${year}-${month}-${day}T${hour}:${minute}`;
+  };
 
   const handleDeleteClick = (task) => {
     setTaskToDelete(task);
@@ -214,12 +240,16 @@ export default function TasksPage() {
     setSubmitting(true);
     
     try {
-      // Convert datetime-local to UTC ISO string for consistent storage
+      // Save deadline as IST datetime string (with +05:30 timezone)
       const taskData = { ...formData };
       if (taskData.deadline) {
-        // datetime-local gives local time - convert to UTC for storage
-        const localDate = new Date(taskData.deadline);
-        taskData.deadline = localDate.toISOString();
+        // datetime-local format: YYYY-MM-DDTHH:mm (no timezone)
+        // Treat it as IST (UTC+5:30) and save with IST timezone indicator
+        const deadlineStr = taskData.deadline; // e.g., "2024-01-15T14:30"
+        
+        // Append IST timezone (+05:30) to the datetime string
+        // This ensures it's saved as IST, not converted to UTC
+        taskData.deadline = deadlineStr + ':00+05:30';
       }
       
       const res = await authenticatedFetch('/api/tasks', {
@@ -322,10 +352,12 @@ export default function TasksPage() {
           </h1>
           <p className="text-muted-foreground mt-1">Manage and track all tasks</p>
         </div>
-        <Button onClick={() => setShowCreateModal(true)} className="gap-2" size="lg">
-          <Plus className="h-4 w-4" />
-          Create Task
-        </Button>
+        {canCreate && (
+          <Button onClick={() => setShowCreateModal(true)} className="gap-2" size="lg">
+            <Plus className="h-4 w-4" />
+            Create Task
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
@@ -608,7 +640,7 @@ export default function TasksPage() {
                   />
                 </div>
 
-                <div className="space-y-2 md:col-span-2">
+                {/* <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="description" className="text-sm font-medium">
                     Description
                   </Label>
@@ -621,7 +653,7 @@ export default function TasksPage() {
                     className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     rows="3"
                   />
-                </div>
+                </div> */}
 
                 <div className="space-y-2">
                   <Label htmlFor="priority" className="text-sm font-medium">
@@ -656,7 +688,6 @@ export default function TasksPage() {
                     onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
                     disabled={submitting}
                     className="h-11"
-                    min={new Date().toISOString().slice(0, 16)}
                   />
                 </div>
 

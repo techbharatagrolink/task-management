@@ -104,6 +104,22 @@ export async function GET(request, { params }) {
     );
     task.reports = reports;
 
+    // Get pending status requests
+    const statusRequests = await query(
+      `SELECT tsr.*, 
+              u1.name as requested_by_name,
+              u2.name as verified_by_name,
+              u3.name as reassigned_to_name
+       FROM task_status_requests tsr
+       LEFT JOIN users u1 ON tsr.requested_by = u1.id
+       LEFT JOIN users u2 ON tsr.verified_by = u2.id
+       LEFT JOIN users u3 ON tsr.reassigned_to = u3.id
+       WHERE tsr.task_id = ? AND tsr.status = 'pending'
+       ORDER BY tsr.created_at DESC`,
+      [id]
+    );
+    task.pending_status_requests = statusRequests;
+
     return NextResponse.json({ task });
   } catch (error) {
     console.error('Get task error:', error);
@@ -125,12 +141,8 @@ export async function PUT(request, { params }) {
     const { id } = await params;
     const body = await request.json();
 
-    // Check permissions
+    // Check if user can directly edit (Admin, Manager, HR, Super Admin)
     const canEdit = hasPermission(user.role, ['Super Admin', 'Admin', 'Manager', 'HR']);
-
-    if (!canEdit) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
 
     const {
       title,
@@ -142,6 +154,69 @@ export async function PUT(request, { params }) {
       assigned_users
     } = body;
 
+    // If employee is trying to update status, create a status change request instead
+    if (status !== undefined && !canEdit) {
+      // Check if user is assigned to this task
+      const taskAssignments = await query(
+        'SELECT user_id FROM task_assignments WHERE task_id = ? AND user_id = ?',
+        [id, user.id]
+      );
+
+      if (taskAssignments.length === 0) {
+        return NextResponse.json(
+          { error: 'You are not assigned to this task' },
+          { status: 403 }
+        );
+      }
+
+      // Get current task status
+      const tasks = await query('SELECT status FROM tasks WHERE id = ?', [id]);
+      if (tasks.length === 0) {
+        return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+      }
+
+      const currentStatus = tasks[0].status;
+
+      // Check if there's already a pending request
+      const existingRequests = await query(
+        'SELECT id FROM task_status_requests WHERE task_id = ? AND requested_by = ? AND status = "pending"',
+        [id, user.id]
+      );
+
+      if (existingRequests.length > 0) {
+        return NextResponse.json(
+          { error: 'You already have a pending status change request for this task' },
+          { status: 400 }
+        );
+      }
+
+      // Create status change request
+      await query(
+        `INSERT INTO task_status_requests 
+         (task_id, requested_by, requested_status, current_status, status) 
+         VALUES (?, ?, ?, ?, 'pending')`,
+        [id, user.id, status, currentStatus]
+      );
+
+      // Log activity
+      await query(
+        'INSERT INTO activity_logs (user_id, action, module, details) VALUES (?, ?, ?, ?)',
+        [user.id, 'request_status_change', 'tasks', `Requested status change for task ID: ${id} from ${currentStatus} to ${status}`]
+      );
+
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Status change request submitted. Waiting for approval.',
+        requiresApproval: true
+      });
+    }
+
+    // If user doesn't have edit permission and is not updating status, deny
+    if (!canEdit) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Admin/Manager/HR can directly update
     const updates = [];
     const params_arr = [];
 

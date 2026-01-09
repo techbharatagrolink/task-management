@@ -62,6 +62,7 @@ export default function TaskDetailsPage() {
   const [newComment, setNewComment] = useState('');
   const [updatingSubtask, setUpdatingSubtask] = useState(null);
   const [userRole, setUserRole] = useState(null);
+  const [userInfo, setUserInfo] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -83,6 +84,11 @@ export default function TaskDetailsPage() {
   const [editingSubtaskId, setEditingSubtaskId] = useState(null);
   const [editingSubtaskData, setEditingSubtaskData] = useState({ title: '', description: '' });
   const [subtaskLoading, setSubtaskLoading] = useState(false);
+  
+  // Status request states
+  const [verifyingRequest, setVerifyingRequest] = useState(null);
+  const [verificationComments, setVerificationComments] = useState({});
+  const [reassignTos, setReassignTos] = useState({});
 
   useEffect(() => {
     if (taskId) {
@@ -97,22 +103,69 @@ export default function TaskDetailsPage() {
       // Parse assigned user IDs from the task
       const assignedIds = task.assigned_user_ids ? task.assigned_user_ids.split(',').map(Number) : [];
       
-      // Format deadline for datetime-local input
+      // Format deadline for datetime-local input (deadline is stored as IST)
       let deadlineValue = '';
       if (task.deadline) {
-        // Normalize the deadline string - treat as UTC if no timezone info
+        // Normalize the deadline string
         let deadlineStr = task.deadline.includes('T') ? task.deadline : task.deadline.replace(' ', 'T');
-        if (!deadlineStr.endsWith('Z') && !deadlineStr.includes('+') && !deadlineStr.match(/-\d{2}:\d{2}$/)) {
-          deadlineStr += 'Z'; // Treat as UTC (DB stores UTC)
+        
+        // Check if deadline has timezone info
+        if (deadlineStr.includes('+05:30') || deadlineStr.includes('+0530')) {
+          // Has IST timezone, parse it and extract components
+          const deadlineDate = new Date(deadlineStr);
+          if (!isNaN(deadlineDate.getTime())) {
+            // Use Intl.DateTimeFormat to get IST components (it's already IST, so this formats it correctly)
+            const formatter = new Intl.DateTimeFormat('en-US', {
+              timeZone: 'Asia/Kolkata',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            });
+            
+            const parts = formatter.formatToParts(deadlineDate);
+            const year = parts.find(p => p.type === 'year').value;
+            const month = parts.find(p => p.type === 'month').value;
+            const day = parts.find(p => p.type === 'day').value;
+            const hour = parts.find(p => p.type === 'hour').value;
+            const minute = parts.find(p => p.type === 'minute').value;
+            
+            deadlineValue = `${year}-${month}-${day}T${hour}:${minute}`;
+          }
+        } else if (deadlineStr.endsWith('Z') || deadlineStr.match(/[+-]\d{2}:\d{2}$/)) {
+          // Has other timezone info (UTC or other), convert to IST
+          const deadlineDate = new Date(deadlineStr);
+          if (!isNaN(deadlineDate.getTime())) {
+            const formatter = new Intl.DateTimeFormat('en-US', {
+              timeZone: 'Asia/Kolkata',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            });
+            
+            const parts = formatter.formatToParts(deadlineDate);
+            const year = parts.find(p => p.type === 'year').value;
+            const month = parts.find(p => p.type === 'month').value;
+            const day = parts.find(p => p.type === 'day').value;
+            const hour = parts.find(p => p.type === 'hour').value;
+            const minute = parts.find(p => p.type === 'minute').value;
+            
+            deadlineValue = `${year}-${month}-${day}T${hour}:${minute}`;
+          }
+        } else {
+          // No timezone info - MySQL likely stripped it, assume it's already IST datetime
+          // Extract date/time components directly (format: YYYY-MM-DDTHH:mm or YYYY-MM-DD HH:mm)
+          const match = deadlineStr.match(/(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/);
+          if (match) {
+            // Use the datetime directly as IST
+            deadlineValue = `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}`;
+          }
         }
-        const deadlineDate = new Date(deadlineStr);
-        // Convert UTC to local datetime-local format (YYYY-MM-DDTHH:mm)
-        const year = deadlineDate.getFullYear();
-        const month = String(deadlineDate.getMonth() + 1).padStart(2, '0');
-        const day = String(deadlineDate.getDate()).padStart(2, '0');
-        const hours = String(deadlineDate.getHours()).padStart(2, '0');
-        const minutes = String(deadlineDate.getMinutes()).padStart(2, '0');
-        deadlineValue = `${year}-${month}-${day}T${hours}:${minutes}`;
       }
       
       setEditFormData({
@@ -271,12 +324,16 @@ export default function TaskDetailsPage() {
     setError('');
     
     try {
-      // Convert datetime-local to UTC ISO string for consistent storage
+      // Save deadline as IST datetime string (with +05:30 timezone)
       const updateData = { ...editFormData };
       if (updateData.deadline) {
-        // datetime-local gives local time - convert to UTC for storage
-        const localDate = new Date(updateData.deadline);
-        updateData.deadline = localDate.toISOString();
+        // datetime-local format: YYYY-MM-DDTHH:mm (no timezone)
+        // Treat it as IST (UTC+5:30) and save with IST timezone indicator
+        const deadlineStr = updateData.deadline; // e.g., "2024-01-15T14:30"
+        
+        // Append IST timezone (+05:30) to the datetime string
+        // This ensures it's saved as IST, not converted to UTC
+        updateData.deadline = deadlineStr + ':00+05:30';
       }
       
       const res = await authenticatedFetch(`/api/tasks/${task.id}`, {
@@ -287,6 +344,11 @@ export default function TaskDetailsPage() {
 
       const data = await res.json();
       if (res.ok) {
+        if (data.requiresApproval) {
+          // Status change request was created, show success message
+          setError(''); // Clear any errors
+          alert('Status change request submitted successfully! Waiting for manager/assigner approval.');
+        }
         setEditDialogOpen(false);
         // Refresh task details
         await fetchTaskDetails();
@@ -298,6 +360,51 @@ export default function TaskDetailsPage() {
       setError('Network error. Please try again.');
     } finally {
       setEditing(false);
+    }
+  };
+
+  // Status request handlers
+  const handleVerifyStatusRequest = async (requestId, action) => {
+    if (!task) return;
+    
+    setVerifyingRequest(requestId);
+    setError('');
+    
+    try {
+      const res = await authenticatedFetch(`/api/tasks/${task.id}/status-requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          request_id: requestId,
+          action: action,
+          comment: verificationComments[requestId] || null,
+          reassigned_to: action === 'reassign' ? parseInt(reassignTos[requestId]) : null
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setVerificationComments(prev => {
+          const newComments = { ...prev };
+          delete newComments[requestId];
+          return newComments;
+        });
+        setReassignTos(prev => {
+          const newReassigns = { ...prev };
+          delete newReassigns[requestId];
+          return newReassigns;
+        });
+        setVerifyingRequest(null);
+        // Refresh task details
+        await fetchTaskDetails();
+      } else {
+        setError(data.error || `Failed to ${action} status request`);
+      }
+    } catch (err) {
+      console.error(`Failed to ${action} status request:`, err);
+      setError('Network error. Please try again.');
+    } finally {
+      setVerifyingRequest(null);
     }
   };
 
@@ -473,6 +580,64 @@ export default function TaskDetailsPage() {
     });
   };
 
+  const formatDateIST = (dateString) => {
+    if (!dateString) return 'N/A';
+    // Normalize the date string
+    let normalizedString = dateString.includes('T') ? dateString : dateString.replace(' ', 'T');
+    
+    let date;
+    // Check if deadline has IST timezone (+05:30)
+    if (normalizedString.includes('+05:30') || normalizedString.includes('+0530')) {
+      // Has IST timezone, parse it directly
+      date = new Date(normalizedString);
+    } else if (normalizedString.endsWith('Z') || normalizedString.match(/[+-]\d{2}:\d{2}$/)) {
+      // Has other timezone info (UTC or other), parse it
+      date = new Date(normalizedString);
+    } else {
+      // No timezone info - MySQL likely stripped it, assume it's IST datetime
+      // Append IST timezone to parse correctly
+      date = new Date(normalizedString + '+05:30');
+    }
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) return 'N/A';
+    
+    // Format in IST timezone (Asia/Kolkata) - display the IST datetime correctly
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Kolkata'
+    });
+  };
+
+  // Get current IST time in datetime-local format (YYYY-MM-DDTHH:mm)
+  const getCurrentISTDateTime = () => {
+    const now = new Date();
+    // Get IST time components using Intl.DateTimeFormat
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+    
+    const parts = formatter.formatToParts(now);
+    const year = parts.find(p => p.type === 'year').value;
+    const month = parts.find(p => p.type === 'month').value;
+    const day = parts.find(p => p.type === 'day').value;
+    const hour = parts.find(p => p.type === 'hour').value;
+    const minute = parts.find(p => p.type === 'minute').value;
+    
+    // Format as datetime-local (YYYY-MM-DDTHH:mm)
+    return `${year}-${month}-${day}T${hour}:${minute}`;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -602,7 +767,7 @@ export default function TaskDetailsPage() {
                   <div>
                     <p className="text-sm text-muted-foreground">Deadline</p>
                     <p className="font-medium">
-                      {task.deadline ? formatDate(task.deadline) : 'No deadline'}
+                      {task.deadline ? formatDateIST(task.deadline) : 'No deadline'}
                     </p>
                     {task.deadline && (
                       <div className="mt-2">
@@ -745,6 +910,146 @@ export default function TaskDetailsPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Pending Status Requests Section */}
+          {task.pending_status_requests && task.pending_status_requests.length > 0 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-orange-600" />
+                  <CardTitle>Pending Status Change Requests</CardTitle>
+                </div>
+                <CardDescription>
+                  {task.pending_status_requests.length} pending request{task.pending_status_requests.length !== 1 ? 's' : ''}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {task.pending_status_requests.map((request) => {
+                  const canVerify = userRole === 'Super Admin' || userRole === 'Admin' || userRole === 'Manager' || userRole === 'HR' ||
+                    (task.assigned_user_ids && userInfo && task.assigned_user_ids.split(',').map(Number).includes(userInfo.id));
+                  
+                  return (
+                    <div key={request.id} className="p-4 border rounded-lg bg-orange-50 border-orange-200">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="outline" className="bg-orange-100 text-orange-800">
+                              {request.current_status} → {request.requested_status}
+                            </Badge>
+                            <span className="text-sm text-muted-foreground">
+                              Requested by {request.requested_by_name}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(request.created_at).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {canVerify && (
+                        <div className="space-y-3 mt-4 pt-4 border-t border-orange-300">
+                          <div className="space-y-2">
+                            <Label htmlFor={`comment-${request.id}`} className="text-sm font-medium">
+                              Verification Comment (Optional)
+                            </Label>
+                            <textarea
+                              id={`comment-${request.id}`}
+                              value={verificationComments[request.id] || ''}
+                              onChange={(e) => setVerificationComments(prev => ({ ...prev, [request.id]: e.target.value }))}
+                              placeholder="Add a comment about this status change..."
+                              className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                              rows="3"
+                              disabled={verifyingRequest === request.id}
+                            />
+                          </div>
+                          
+                          <div className="flex items-center gap-3">
+                            <Button
+                              onClick={() => handleVerifyStatusRequest(request.id, 'approve')}
+                              disabled={verifyingRequest === request.id}
+                              className="bg-green-600 hover:bg-green-700"
+                              size="sm"
+                            >
+                              {verifyingRequest === request.id ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  Approving...
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                                  Approve
+                                </>
+                              )}
+                            </Button>
+                            
+                            <Button
+                              onClick={() => handleVerifyStatusRequest(request.id, 'reject')}
+                              disabled={verifyingRequest === request.id}
+                              variant="destructive"
+                              size="sm"
+                            >
+                              {verifyingRequest === request.id ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  Rejecting...
+                                </>
+                              ) : (
+                                <>
+                                  <X className="h-4 w-4 mr-2" />
+                                  Reject
+                                </>
+                              )}
+                            </Button>
+                            
+                            <div className="flex-1">
+                              <Select
+                                value={reassignTos[request.id] || ''}
+                                onValueChange={(value) => setReassignTos(prev => ({ ...prev, [request.id]: value }))}
+                                disabled={verifyingRequest === request.id}
+                              >
+                                <SelectTrigger className="h-9">
+                                  <SelectValue placeholder="Reassign to..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {employees
+                                    .filter(emp => emp.role !== 'Super Admin' && emp.is_active !== 0)
+                                    .map(emp => (
+                                      <SelectItem key={emp.id} value={emp.id.toString()}>
+                                        {emp.name} {emp.department ? `(${emp.department})` : ''}
+                                      </SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            <Button
+                              onClick={() => handleVerifyStatusRequest(request.id, 'reassign')}
+                              disabled={verifyingRequest === request.id || !reassignTos[request.id]}
+                              variant="outline"
+                              size="sm"
+                            >
+                              {verifyingRequest === request.id ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  Reassigning...
+                                </>
+                              ) : (
+                                <>
+                                  <Users className="h-4 w-4 mr-2" />
+                                  Reassign
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Comments Section */}
           <Card>
@@ -945,7 +1250,7 @@ export default function TaskDetailsPage() {
                   />
                 </div>
 
-                <div className="space-y-2 md:col-span-2">
+                {/* <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="edit-description" className="text-sm font-medium">
                     Description
                   </Label>
@@ -958,7 +1263,7 @@ export default function TaskDetailsPage() {
                     className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     rows="3"
                   />
-                </div>
+                </div> */}
 
                 <div className="space-y-2">
                   <Label htmlFor="edit-priority" className="text-sm font-medium">
