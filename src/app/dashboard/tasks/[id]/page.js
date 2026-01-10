@@ -103,68 +103,41 @@ export default function TaskDetailsPage() {
       // Parse assigned user IDs from the task
       const assignedIds = task.assigned_user_ids ? task.assigned_user_ids.split(',').map(Number) : [];
       
-      // Format deadline for datetime-local input (deadline is stored as IST)
+      // Format deadline for datetime-local input (deadline is stored in UTC, convert to IST for display)
       let deadlineValue = '';
       if (task.deadline) {
-        // Normalize the deadline string
+        // Normalize the deadline string - database stores UTC
         let deadlineStr = task.deadline.includes('T') ? task.deadline : task.deadline.replace(' ', 'T');
         
-        // Check if deadline has timezone info
-        if (deadlineStr.includes('+05:30') || deadlineStr.includes('+0530')) {
-          // Has IST timezone, parse it and extract components
-          const deadlineDate = new Date(deadlineStr);
-          if (!isNaN(deadlineDate.getTime())) {
-            // Use Intl.DateTimeFormat to get IST components (it's already IST, so this formats it correctly)
-            const formatter = new Intl.DateTimeFormat('en-US', {
-              timeZone: 'Asia/Kolkata',
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false
-            });
-            
-            const parts = formatter.formatToParts(deadlineDate);
-            const year = parts.find(p => p.type === 'year').value;
-            const month = parts.find(p => p.type === 'month').value;
-            const day = parts.find(p => p.type === 'day').value;
-            const hour = parts.find(p => p.type === 'hour').value;
-            const minute = parts.find(p => p.type === 'minute').value;
-            
-            deadlineValue = `${year}-${month}-${day}T${hour}:${minute}`;
-          }
-        } else if (deadlineStr.endsWith('Z') || deadlineStr.match(/[+-]\d{2}:\d{2}$/)) {
-          // Has other timezone info (UTC or other), convert to IST
-          const deadlineDate = new Date(deadlineStr);
-          if (!isNaN(deadlineDate.getTime())) {
-            const formatter = new Intl.DateTimeFormat('en-US', {
-              timeZone: 'Asia/Kolkata',
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false
-            });
-            
-            const parts = formatter.formatToParts(deadlineDate);
-            const year = parts.find(p => p.type === 'year').value;
-            const month = parts.find(p => p.type === 'month').value;
-            const day = parts.find(p => p.type === 'day').value;
-            const hour = parts.find(p => p.type === 'hour').value;
-            const minute = parts.find(p => p.type === 'minute').value;
-            
-            deadlineValue = `${year}-${month}-${day}T${hour}:${minute}`;
-          }
-        } else {
-          // No timezone info - MySQL likely stripped it, assume it's already IST datetime
-          // Extract date/time components directly (format: YYYY-MM-DDTHH:mm or YYYY-MM-DD HH:mm)
-          const match = deadlineStr.match(/(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/);
-          if (match) {
-            // Use the datetime directly as IST
-            deadlineValue = `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}`;
-          }
+        // If no timezone info, treat as UTC (MySQL DATETIME is timezone-naive, but we store as UTC)
+        if (!deadlineStr.endsWith('Z') && !deadlineStr.includes('+') && !deadlineStr.match(/-\d{2}:\d{2}$/)) {
+          deadlineStr += 'Z'; // Treat as UTC
+        }
+        
+        const deadlineDate = new Date(deadlineStr);
+        
+        // Validate the date
+        if (!isNaN(deadlineDate.getTime())) {
+          // Convert UTC to IST (Asia/Kolkata) for display in datetime-local input
+          const formatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Asia/Kolkata',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+          });
+          
+          const parts = formatter.formatToParts(deadlineDate);
+          const year = parts.find(p => p.type === 'year').value;
+          const month = parts.find(p => p.type === 'month').value;
+          const day = parts.find(p => p.type === 'day').value;
+          const hour = parts.find(p => p.type === 'hour').value;
+          const minute = parts.find(p => p.type === 'minute').value;
+          
+          // Format as datetime-local (YYYY-MM-DDTHH:mm) - shows IST time
+          deadlineValue = `${year}-${month}-${day}T${hour}:${minute}`;
         }
       }
       
@@ -324,16 +297,18 @@ export default function TaskDetailsPage() {
     setError('');
     
     try {
-      // Save deadline as IST datetime string (with +05:30 timezone)
+      // Convert deadline from IST to UTC for database storage
       const updateData = { ...editFormData };
       if (updateData.deadline) {
         // datetime-local format: YYYY-MM-DDTHH:mm (no timezone)
-        // Treat it as IST (UTC+5:30) and save with IST timezone indicator
+        // Treat input as IST (UTC+5:30) and convert to UTC for storage
         const deadlineStr = updateData.deadline; // e.g., "2024-01-15T14:30"
         
-        // Append IST timezone (+05:30) to the datetime string
-        // This ensures it's saved as IST, not converted to UTC
-        updateData.deadline = deadlineStr + ':00+05:30';
+        // Create a date object treating the input as IST
+        const istDate = new Date(deadlineStr + '+05:30');
+        
+        // Convert to UTC ISO string for database storage
+        updateData.deadline = istDate.toISOString();
       }
       
       const res = await authenticatedFetch(`/api/tasks/${task.id}`, {
@@ -582,27 +557,20 @@ export default function TaskDetailsPage() {
 
   const formatDateIST = (dateString) => {
     if (!dateString) return 'N/A';
-    // Normalize the date string
+    // Normalize the date string - database stores UTC
     let normalizedString = dateString.includes('T') ? dateString : dateString.replace(' ', 'T');
     
-    let date;
-    // Check if deadline has IST timezone (+05:30)
-    if (normalizedString.includes('+05:30') || normalizedString.includes('+0530')) {
-      // Has IST timezone, parse it directly
-      date = new Date(normalizedString);
-    } else if (normalizedString.endsWith('Z') || normalizedString.match(/[+-]\d{2}:\d{2}$/)) {
-      // Has other timezone info (UTC or other), parse it
-      date = new Date(normalizedString);
-    } else {
-      // No timezone info - MySQL likely stripped it, assume it's IST datetime
-      // Append IST timezone to parse correctly
-      date = new Date(normalizedString + '+05:30');
+    // If no timezone info, treat as UTC (MySQL DATETIME is timezone-naive, but we store as UTC)
+    if (!normalizedString.endsWith('Z') && !normalizedString.includes('+') && !normalizedString.match(/-\d{2}:\d{2}$/)) {
+      normalizedString += 'Z'; // Treat as UTC
     }
+    
+    const date = new Date(normalizedString);
     
     // Check if date is valid
     if (isNaN(date.getTime())) return 'N/A';
     
-    // Format in IST timezone (Asia/Kolkata) - display the IST datetime correctly
+    // Format in IST timezone (Asia/Kolkata) - converts UTC to IST for display
     return date.toLocaleString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -767,7 +735,13 @@ export default function TaskDetailsPage() {
                   <div>
                     <p className="text-sm text-muted-foreground">Deadline</p>
                     <p className="font-medium">
-                      {task.deadline ? formatDateIST(task.deadline) : 'No deadline'}
+                      {/* {task.deadline ? formatDateIST(task.deadline) : 'No deadline'} */}
+                      {new Date(task.deadline).toLocaleString("en-IN", {
+  timeZone: "Asia/Kolkata",
+  dateStyle: "medium",
+  timeStyle: "short",
+})}
+
                     </p>
                     {task.deadline && (
                       <div className="mt-2">

@@ -240,16 +240,18 @@ export default function TasksPage() {
     setSubmitting(true);
     
     try {
-      // Save deadline as IST datetime string (with +05:30 timezone)
+      // Convert deadline from IST to UTC for database storage
       const taskData = { ...formData };
       if (taskData.deadline) {
         // datetime-local format: YYYY-MM-DDTHH:mm (no timezone)
-        // Treat it as IST (UTC+5:30) and save with IST timezone indicator
+        // Treat input as IST (UTC+5:30) and convert to UTC for storage
         const deadlineStr = taskData.deadline; // e.g., "2024-01-15T14:30"
         
-        // Append IST timezone (+05:30) to the datetime string
-        // This ensures it's saved as IST, not converted to UTC
-        taskData.deadline = deadlineStr + ':00+05:30';
+        // Create a date object treating the input as IST
+        const istDate = new Date(deadlineStr + '+05:30');
+        
+        // Convert to UTC ISO string for database storage
+        taskData.deadline = istDate.toISOString();
       }
       
       const res = await authenticatedFetch('/api/tasks', {
