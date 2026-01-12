@@ -114,7 +114,7 @@ export const sidebarItems = {
     name: 'Manage KRA',
     icon: Target,
     href: '/dashboard/admin/kra',
-    roles: ['Super Admin', 'Admin'],
+    roles: ['Super Admin', 'Admin', 'HR'],
     category: 'Performance & Goals',
   },
   kraScores: {
@@ -213,7 +213,7 @@ export const sidebarItems = {
     name: 'Employee Ratings',
     icon: Award,
     href: '/dashboard/employee-ratings',
-    roles: ['Super Admin', 'Admin', 'Manager', 'HR'],
+    roles: ['all'], // Available to all roles - employees view their ratings, admins/managers/hr can submit
     category: 'Performance & Goals',
   },
   payslips: {

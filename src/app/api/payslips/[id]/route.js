@@ -149,11 +149,11 @@ export async function PUT(request, { params }) {
 
     // Calculate totals if earnings/deductions are provided
     let totalEarnings, totalDeductions, netPay;
-    if (earnings && deductions) {
-      if (!Array.isArray(earnings) || !Array.isArray(deductions)) {
+    if (earnings !== undefined) {
+      if (!Array.isArray(earnings)) {
         await connection.rollback();
         return NextResponse.json(
-          { error: 'Earnings and deductions must be arrays' },
+          { error: 'Earnings must be an array' },
           { status: 400 }
         );
       }
@@ -163,7 +163,20 @@ export async function PUT(request, { params }) {
         return sum + amount;
       }, 0);
 
-      totalDeductions = deductions.reduce((sum, item) => {
+      // Deductions are optional - default to empty array if not provided
+      const deductionsArray = deductions !== undefined 
+        ? (Array.isArray(deductions) ? deductions : [])
+        : [];
+
+      if (deductions !== undefined && !Array.isArray(deductions)) {
+        await connection.rollback();
+        return NextResponse.json(
+          { error: 'Deductions must be an array' },
+          { status: 400 }
+        );
+      }
+
+      totalDeductions = deductionsArray.reduce((sum, item) => {
         const amount = parseFloat(item.amount) || 0;
         return sum + amount;
       }, 0);
@@ -216,8 +229,9 @@ export async function PUT(request, { params }) {
       updateValues.push(JSON.stringify(earnings));
     }
     if (deductions !== undefined) {
+      const deductionsArray = Array.isArray(deductions) ? deductions : [];
       updateFields.push('deductions = ?');
-      updateValues.push(JSON.stringify(deductions));
+      updateValues.push(JSON.stringify(deductionsArray));
     }
     if (totalEarnings !== undefined) {
       updateFields.push('total_earnings = ?');

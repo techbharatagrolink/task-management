@@ -68,7 +68,9 @@ export default function TasksPage() {
     status: '',
     assigned_to: '',
     priority: '',
-    department: ''
+    department: '',
+    date_from: '',
+    date_to: ''
   });
   const [departments, setDepartments] = useState([]);
 
@@ -100,6 +102,8 @@ export default function TasksPage() {
       if (filters.assigned_to) params.append('assigned_to', filters.assigned_to);
       if (filters.priority) params.append('priority', filters.priority);
       if (filters.department) params.append('department', filters.department);
+      if (filters.date_from) params.append('date_from', filters.date_from);
+      if (filters.date_to) params.append('date_to', filters.date_to);
       
       const queryString = params.toString();
       const url = queryString ? `/api/tasks?${queryString}` : '/api/tasks';
@@ -151,7 +155,9 @@ export default function TasksPage() {
       status: '',
       assigned_to: '',
       priority: '',
-      department: ''
+      department: '',
+      date_from: '',
+      date_to: ''
     });
   };
 
@@ -468,6 +474,35 @@ export default function TasksPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="filter-date-from" className="text-sm font-medium flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                Date From
+              </Label>
+              <Input
+                id="filter-date-from"
+                type="date"
+                value={filters.date_from}
+                onChange={(e) => handleFilterChange('date_from', e.target.value)}
+                className="h-10"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="filter-date-to" className="text-sm font-medium flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                Date To
+              </Label>
+              <Input
+                id="filter-date-to"
+                type="date"
+                value={filters.date_to}
+                onChange={(e) => handleFilterChange('date_to', e.target.value)}
+                min={filters.date_from || undefined}
+                className="h-10"
+              />
             </div>
           </div>
         </CardContent>

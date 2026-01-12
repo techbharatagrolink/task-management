@@ -11,15 +11,14 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check permissions - Admin, Manager, HR can view ratings
-    const canView = hasPermission(user.role, ['Super Admin', 'Admin', 'Manager', 'HR']);
-    if (!canView) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
     const { searchParams } = new URL(request.url);
     const employeeId = searchParams.get('employee_id');
     const period = searchParams.get('period'); // Optional: filter by period
+
+    // Check permissions - Admin, Manager, HR can view all ratings
+    // Employees can only view their own ratings
+    const canViewAll = hasPermission(user.role, ['Super Admin', 'Admin', 'Manager', 'HR']);
+    const isEmployee = !canViewAll;
 
     let sql = `
       SELECT 
@@ -48,10 +47,23 @@ export async function GET(request) {
     `;
     const params = [];
 
-    // Filter by employee if specified
-    if (employeeId) {
+    // Employees can only view their own ratings
+    if (isEmployee) {
+      console.log('Employee viewing ratings - User ID:', user.id, 'Role:', user.role);
       sql += ' AND er.employee_id = ?';
-      params.push(employeeId);
+      params.push(user.id);
+    } else {
+      // Filter by employee if specified (for Admin/Manager/HR)
+      if (employeeId) {
+        sql += ' AND er.employee_id = ?';
+        params.push(employeeId);
+      }
+
+      // Managers can only see ratings for their team members
+      if (user.role === 'Manager' && !hasPermission(user.role, ['Super Admin', 'Admin', 'HR'])) {
+        sql += ' AND e.manager_id = ?';
+        params.push(user.id);
+      }
     }
 
     // Filter by period if specified
@@ -60,17 +72,20 @@ export async function GET(request) {
       params.push(period);
     }
 
-    // Managers can only see ratings for their team members
-    if (user.role === 'Manager' && !hasPermission(user.role, ['Super Admin', 'Admin', 'HR'])) {
-      sql += ' AND e.manager_id = ?';
-      params.push(user.id);
-    }
-
     sql += ' ORDER BY er.created_at DESC';
 
+    console.log('Executing SQL:', sql);
+    console.log('With params:', params);
+    
     const ratings = await query(sql, params);
+    
+    console.log('Query result count:', Array.isArray(ratings) ? ratings.length : 0);
 
-    return NextResponse.json({ ratings });
+    // Always return an array, even if empty
+    return NextResponse.json({ 
+      ratings: Array.isArray(ratings) ? ratings : [],
+      count: Array.isArray(ratings) ? ratings.length : 0
+    });
   } catch (error) {
     console.error('Get employee ratings error:', error);
     return NextResponse.json(

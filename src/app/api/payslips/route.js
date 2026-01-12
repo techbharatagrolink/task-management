@@ -129,20 +129,32 @@ export async function POST(request) {
       net_pay_words
     } = body;
 
-    // Validate required fields
-    if (!employee_id || !payslip_month || !employee_name || !earnings || !deductions) {
+    // Validate required fields (deductions are optional)
+    if (!employee_id || !payslip_month || !employee_name || !earnings) {
       await connection.rollback();
       return NextResponse.json(
-        { error: 'Employee ID, payslip month, employee name, earnings, and deductions are required' },
+        { error: 'Employee ID, payslip month, employee name, and earnings are required' },
         { status: 400 }
       );
     }
 
-    // Validate earnings and deductions are arrays
-    if (!Array.isArray(earnings) || !Array.isArray(deductions)) {
+    // Validate earnings is an array
+    if (!Array.isArray(earnings)) {
       await connection.rollback();
       return NextResponse.json(
-        { error: 'Earnings and deductions must be arrays' },
+        { error: 'Earnings must be an array' },
+        { status: 400 }
+      );
+    }
+
+    // Deductions are optional - default to empty array if not provided
+    const deductionsArray = deductions && Array.isArray(deductions) ? deductions : [];
+    
+    // Validate deductions is an array if provided
+    if (deductions !== undefined && deductions !== null && !Array.isArray(deductions)) {
+      await connection.rollback();
+      return NextResponse.json(
+        { error: 'Deductions must be an array' },
         { status: 400 }
       );
     }
@@ -153,7 +165,7 @@ export async function POST(request) {
       return sum + amount;
     }, 0);
 
-    const totalDeductions = deductions.reduce((sum, item) => {
+    const totalDeductions = deductionsArray.reduce((sum, item) => {
       const amount = parseFloat(item.amount) || 0;
       return sum + amount;
     }, 0);
@@ -206,7 +218,7 @@ export async function POST(request) {
         account_number || null,
         uan_pf_number || null,
         JSON.stringify(earnings),
-        JSON.stringify(deductions),
+        JSON.stringify(deductionsArray),
         totalEarnings,
         totalDeductions,
         netPay,

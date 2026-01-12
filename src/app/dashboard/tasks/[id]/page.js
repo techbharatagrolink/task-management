@@ -737,10 +737,10 @@ export default function TaskDetailsPage() {
                     <p className="font-medium">
                       {/* {task.deadline ? formatDateIST(task.deadline) : 'No deadline'} */}
                       {new Date(task.deadline).toLocaleString("en-IN", {
-  timeZone: "Asia/Kolkata",
-  dateStyle: "medium",
-  timeStyle: "short",
-})}
+                        timeZone: "Asia/Kolkata",
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                        })}
 
                     </p>
                     {task.deadline && (

@@ -286,12 +286,11 @@ function PayslipsPageContent() {
   };
 
   const removeDeductionRow = (index) => {
-    if (formData.deductions.length > 1) {
-      setFormData(prev => ({
-        ...prev,
-        deductions: prev.deductions.filter((_, i) => i !== index)
-      }));
-    }
+    // Allow removing all deduction rows (deductions are optional)
+    setFormData(prev => ({
+      ...prev,
+      deductions: prev.deductions.filter((_, i) => i !== index)
+    }));
   };
 
   const validateForm = () => {
@@ -317,13 +316,18 @@ function PayslipsPageContent() {
       }
     });
 
-    // Validate deductions
+    // Validate deductions (optional - only validate if deductions exist)
     formData.deductions.forEach((deduction, index) => {
-      if (!deduction.name || !deduction.name.trim()) {
-        newErrors[`deduction_name_${index}`] = 'Deduction name is required';
-      }
-      if (!deduction.amount || parseFloat(deduction.amount) <= 0) {
-        newErrors[`deduction_amount_${index}`] = 'Valid deduction amount is required';
+      // Only validate if deduction has a name (meaning user started filling it)
+      if (deduction.name && deduction.name.trim()) {
+        if (!deduction.amount || parseFloat(deduction.amount) <= 0) {
+          newErrors[`deduction_amount_${index}`] = 'Valid deduction amount is required';
+        }
+      } else if (deduction.amount && parseFloat(deduction.amount) > 0) {
+        // If amount is provided, name is required
+        if (!deduction.name || !deduction.name.trim()) {
+          newErrors[`deduction_name_${index}`] = 'Deduction name is required';
+        }
       }
     });
 
@@ -362,10 +366,12 @@ function PayslipsPageContent() {
           name: e.name.trim(),
           amount: parseFloat(e.amount) || 0
         })),
-        deductions: formData.deductions.map(d => ({
-          name: d.name.trim(),
-          amount: parseFloat(d.amount) || 0
-        })),
+        deductions: formData.deductions
+          .filter(d => d.name && d.name.trim()) // Only include deductions with names
+          .map(d => ({
+            name: d.name.trim(),
+            amount: parseFloat(d.amount) || 0
+          })),
         net_pay_words: formData.net_pay_words || null
       };
 

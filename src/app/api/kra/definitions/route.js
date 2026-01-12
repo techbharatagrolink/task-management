@@ -67,10 +67,14 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only Admin and Super Admin can manage KRA definitions
-    if (!hasPermission(user.role, ['Super Admin', 'Admin'])) {
+    // Only Admin, Super Admin, and HR can manage KRA definitions
+    if (!hasPermission(user.role, ['Super Admin', 'Admin', 'HR'])) {
       await connection.rollback();
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      console.log('KRA definition access denied for role:', user.role);
+      return NextResponse.json({ 
+        error: 'Forbidden', 
+        details: `Your role (${user.role}) does not have permission to manage KRA definitions. Only Super Admin, Admin, and HR can manage KRAs.`
+      }, { status: 403 });
     }
 
     const body = await request.json();
@@ -199,9 +203,13 @@ export async function DELETE(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!hasPermission(user.role, ['Super Admin', 'Admin'])) {
+    if (!hasPermission(user.role, ['Super Admin', 'Admin', 'HR'])) {
       await connection.rollback();
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      console.log('KRA definition delete access denied for role:', user.role);
+      return NextResponse.json({ 
+        error: 'Forbidden',
+        details: `Your role (${user.role}) does not have permission to delete KRA definitions. Only Super Admin, Admin, and HR can delete KRAs.`
+      }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);

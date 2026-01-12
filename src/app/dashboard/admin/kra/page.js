@@ -18,7 +18,11 @@ import {
   Edit,
   Trash2,
   Save,
-  X
+  X,
+  User,
+  Eye,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -32,6 +36,8 @@ export default function AdminKRAPage() {
   const [employees, setEmployees] = useState([]);
   const [editingKra, setEditingKra] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [expandedKras, setExpandedKras] = useState(new Set()); // Track which KRAs are expanded
+  const [expandedUsers, setExpandedUsers] = useState(new Set()); // Track which users' KRAs are expanded
   const [formData, setFormData] = useState({
     user_id: '',
     kra_number: '',
@@ -259,65 +265,175 @@ export default function AdminKRAPage() {
         </Alert>
       )}
 
-      <div className="grid gap-4">
-        {kraDefinitions.map((kra) => (
-          <Card key={kra.id} className={kra.is_active === 0 ? 'opacity-60' : ''}>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <CardTitle>
-                      {kra.user_name || 'Unknown User'} - KRA {kra.kra_number}: {kra.kra_name}
-                    </CardTitle>
-                    {kra.is_active === 0 && (
-                      <Badge variant="secondary">Inactive</Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Badge variant="secondary">
-                      Weight: {kra.weight_percentage}%
-                    </Badge>
-                    {kra.user_email && (
-                      <Badge variant="outline" className="text-xs">
-                        {kra.user_email} {kra.user_role ? `(${kra.user_role})` : ''}
-                      </Badge>
-                    )}
-                  </div>
-                  {kra.kpi_1_name && (
-                    <div className="mt-3 space-y-1">
-                      <p className="text-sm font-medium">• {kra.kpi_1_name}</p>
-                      {kra.kpi_1_target && (
-                        <p className="text-xs text-muted-foreground">Target: {kra.kpi_1_target}</p>
-                      )}
-                      {kra.kpi_1_scale && (
-                        <p className="text-xs text-muted-foreground">{kra.kpi_1_scale}</p>
-                      )}
+      <div className="space-y-6">
+        {(() => {
+          // Group KRAs by user_id
+          const groupedByUser = kraDefinitions.reduce((acc, kra) => {
+            const userId = kra.user_id || 'unknown';
+            if (!acc[userId]) {
+              acc[userId] = {
+                user_id: kra.user_id,
+                user_name: kra.user_name || 'Unknown User',
+                user_email: kra.user_email,
+                user_role: kra.user_role,
+                kras: []
+              };
+            }
+            acc[userId].kras.push(kra);
+            return acc;
+          }, {});
+
+          // Convert to array and sort by user name
+          const groupedArray = Object.values(groupedByUser).sort((a, b) => 
+            (a.user_name || '').localeCompare(b.user_name || '')
+          );
+
+          return groupedArray.map((userGroup) => {
+            const userId = userGroup.user_id || 'unknown';
+            const isUserExpanded = expandedUsers.has(userId);
+            return (
+              <Card key={userId} className="border-2">
+                <CardHeader className="bg-muted/50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="text-xl mb-2 flex items-center gap-2">
+                        <User className="h-5 w-5" />
+                        {userGroup.user_name || 'Unknown User'}
+                      </CardTitle>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {userGroup.user_email && (
+                          <Badge variant="outline" className="text-xs">
+                            {userGroup.user_email}
+                          </Badge>
+                        )}
+                        {userGroup.user_role && (
+                          <Badge variant="secondary" className="text-xs">
+                            {userGroup.user_role}
+                          </Badge>
+                        )}
+                        <Badge variant="secondary" className="text-xs">
+                          {userGroup.kras.length} KRA{userGroup.kras.length !== 1 ? 's' : ''}
+                        </Badge>
+                      </div>
                     </div>
-                  )}
-                  {kra.kpi_2_name && (
-                    <div className="mt-2 space-y-1">
-                      <p className="text-sm font-medium">• {kra.kpi_2_name}</p>
-                      {kra.kpi_2_target && (
-                        <p className="text-xs text-muted-foreground">Target: {kra.kpi_2_target}</p>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        const newExpanded = new Set(expandedUsers);
+                        if (isUserExpanded) {
+                          newExpanded.delete(userId);
+                        } else {
+                          newExpanded.add(userId);
+                        }
+                        setExpandedUsers(newExpanded);
+                      }}
+                    >
+                      {isUserExpanded ? (
+                        <>
+                          <ChevronUp className="h-4 w-4 mr-1" />
+                          Hide KRAs
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="h-4 w-4 mr-1" />
+                          View KRAs
+                        </>
                       )}
-                      {kra.kpi_2_scale && (
-                        <p className="text-xs text-muted-foreground">{kra.kpi_2_scale}</p>
-                      )}
+                    </Button>
+                  </div>
+                </CardHeader>
+                {isUserExpanded && (
+                  <CardContent className="pt-6">
+                    <div className="space-y-3">
+                      {userGroup.kras.map((kra) => {
+                        const isKraExpanded = expandedKras.has(kra.id);
+                        return (
+                          <Card key={kra.id} className={kra.is_active === 0 ? 'opacity-60 border-l-4 border-l-yellow-500' : 'border-l-4 border-l-primary'}>
+                            <CardHeader className="pb-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3 flex-1">
+                                  <CardTitle className="text-base font-medium">
+                                    KRA {kra.kra_number}: {kra.kra_name}
+                                  </CardTitle>
+                                  {kra.is_active === 0 && (
+                                    <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                                  )}
+                                  <Badge variant="outline" className="text-xs">
+                                    Weight: {kra.weight_percentage}%
+                                  </Badge>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => {
+                                      const newExpanded = new Set(expandedKras);
+                                      if (isKraExpanded) {
+                                        newExpanded.delete(kra.id);
+                                      } else {
+                                        newExpanded.add(kra.id);
+                                      }
+                                      setExpandedKras(newExpanded);
+                                    }}
+                                  >
+                                    {isKraExpanded ? (
+                                      <>
+                                        <ChevronUp className="h-4 w-4 mr-1" />
+                                        Hide
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Eye className="h-4 w-4 mr-1" />
+                                        View
+                                      </>
+                                    )}
+                                  </Button>
+                                  <Button variant="outline" size="sm" onClick={() => handleEdit(kra)}>
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="outline" size="sm" onClick={() => handleDelete(kra.id)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardHeader>
+                            {isKraExpanded && (
+                              <CardContent className="pt-0 space-y-3">
+                                {kra.kpi_1_name && (
+                                  <div className="space-y-1 p-3 bg-muted/50 rounded-md">
+                                    <p className="text-sm font-medium">KPI 1: {kra.kpi_1_name}</p>
+                                    {kra.kpi_1_target && (
+                                      <p className="text-xs text-muted-foreground">Target: {kra.kpi_1_target}</p>
+                                    )}
+                                    {kra.kpi_1_scale && (
+                                      <p className="text-xs text-muted-foreground">{kra.kpi_1_scale}</p>
+                                    )}
+                                  </div>
+                                )}
+                                {kra.kpi_2_name && (
+                                  <div className="space-y-1 p-3 bg-muted/50 rounded-md">
+                                    <p className="text-sm font-medium">KPI 2: {kra.kpi_2_name}</p>
+                                    {kra.kpi_2_target && (
+                                      <p className="text-xs text-muted-foreground">Target: {kra.kpi_2_target}</p>
+                                    )}
+                                    {kra.kpi_2_scale && (
+                                      <p className="text-xs text-muted-foreground">{kra.kpi_2_scale}</p>
+                                    )}
+                                  </div>
+                                )}
+                              </CardContent>
+                            )}
+                          </Card>
+                        );
+                      })}
                     </div>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => handleEdit(kra)}>
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleDelete(kra.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
-        ))}
+                  </CardContent>
+                )}
+              </Card>
+            );
+          });
+        })()}
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

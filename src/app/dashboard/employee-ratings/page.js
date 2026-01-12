@@ -22,8 +22,10 @@ import {
   CheckCircle2,
   AlertCircle,
   User,
-  Calendar
+  Calendar,
+  MessageSquare
 } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 import { authenticatedFetch } from '@/lib/auth-client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -46,6 +48,8 @@ function EmployeeRatingsPageContent() {
   });
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState(false);
+  const [ratings, setRatings] = useState([]);
+  const [ratingsLoading, setRatingsLoading] = useState(false);
 
   useEffect(() => {
     fetchUser();
@@ -53,7 +57,15 @@ function EmployeeRatingsPageContent() {
 
   useEffect(() => {
     if (user) {
-      fetchEmployees();
+      const canSubmit = ['Super Admin', 'Admin', 'Manager', 'HR'].includes(user.role);
+      console.log('User role:', user.role, 'Can submit:', canSubmit);
+      if (canSubmit) {
+        fetchEmployees();
+      } else {
+        // Employee viewing their own ratings
+        console.log('Fetching ratings for employee ID:', user.id);
+        fetchRatings();
+      }
     }
     
     // Pre-fill employee_id from URL if provided
@@ -75,6 +87,65 @@ function EmployeeRatingsPageContent() {
       }
     } catch (err) {
       console.error('Failed to fetch user:', err);
+    }
+  };
+
+  const fetchRatings = async () => {
+    try {
+      setRatingsLoading(true);
+      setLoading(true);
+      const res = await authenticatedFetch('/api/employee-ratings');
+      const text = await res.text();
+      console.log('Ratings API response:', text);
+      
+      if (!text) {
+        console.log('Empty response from API');
+        setRatings([]);
+        return;
+      }
+      
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        console.error('Failed to parse JSON response:', parseErr, 'Response text:', text);
+        setRatings([]);
+        return;
+      }
+      
+      // Check for error response
+      if (!res.ok) {
+        console.error('API error:', data.error || 'Unknown error', 'Status:', res.status);
+        if (data.error) {
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: data.error || 'Failed to fetch ratings',
+          });
+        }
+        setRatings([]);
+        return;
+      }
+      
+      // Check if ratings array exists
+      if (data.ratings && Array.isArray(data.ratings)) {
+        console.log('Ratings fetched successfully:', data.ratings.length);
+        setRatings(data.ratings);
+      } else {
+        console.log('No ratings in response or invalid format:', data);
+        setRatings([]);
+      }
+    } catch (err) {
+      console.error('Failed to fetch ratings:', err);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to fetch ratings. Please try again.',
+      });
+      setRatings([]);
+    } finally {
+      setRatingsLoading(false);
+      setLoading(false);
     }
   };
 
@@ -240,8 +311,35 @@ function EmployeeRatingsPageContent() {
   };
 
   const selectedEmployee = employees.find(emp => emp.id === parseInt(formData.employee_id));
+  const canSubmit = user && ['Super Admin', 'Admin', 'Manager', 'HR'].includes(user.role);
+  const isEmployee = user && !canSubmit;
+  
+  // Debug logging
+  if (user) {
+    console.log('Render - User:', user.role, 'Can submit:', canSubmit, 'Is employee:', isEmployee, 'Ratings count:', ratings.length);
+  }
 
-  if (loading) {
+  const calculateAverageRating = (rating) => {
+    const ratings = [
+      rating.workplace_behaviour,
+      rating.discipline,
+      rating.innovations,
+      rating.punctuality,
+      rating.critical_task_delivery
+    ];
+    const sum = ratings.reduce((a, b) => a + b, 0);
+    return (sum / ratings.length).toFixed(2);
+  };
+
+  const getRatingColor = (rating) => {
+    if (rating >= 4.5) return 'text-green-600';
+    if (rating >= 3.5) return 'text-blue-600';
+    if (rating >= 2.5) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  // Show loading only if we're still fetching initial data
+  if ((loading && !user) || (ratingsLoading && isEmployee)) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -258,15 +356,17 @@ function EmployeeRatingsPageContent() {
             Employee Ratings
           </h1>
           <p className="text-muted-foreground mt-1">
-            Submit performance ratings for employees
+            {isEmployee ? 'View your performance ratings' : 'Submit performance ratings for employees'}
           </p>
         </div>
-        <Button 
-          variant="outline" 
-          onClick={() => window.location.href = '/dashboard/top-employees'}
-        >
-          View Top Employees
-        </Button>
+        {canSubmit && (
+          <Button 
+            variant="outline" 
+            onClick={() => window.location.href = '/dashboard/top-employees'}
+          >
+            View Top Employees
+          </Button>
+        )}
       </div>
 
       {success && (
@@ -278,7 +378,126 @@ function EmployeeRatingsPageContent() {
         </Alert>
       )}
 
-      <Card>
+      {/* Employee View - Display Ratings */}
+      {isEmployee && user && (
+        <>
+          {ratings.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center py-12">
+                  <Award className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No ratings available yet.</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Your performance ratings will appear here once they are submitted by your manager or HR.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {ratings.map((rating) => {
+                const avgRating = parseFloat(calculateAverageRating(rating));
+                return (
+                  <Card key={rating.id} className="hover:shadow-lg transition-shadow">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="flex items-center gap-2">
+                            <Award className="h-5 w-5 text-primary" />
+                            Performance Rating
+                          </CardTitle>
+                          <CardDescription className="mt-2">
+                            {rating.rating_period 
+                              ? `Rating Period: ${new Date(rating.rating_period + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
+                              : `Submitted on ${new Date(rating.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`
+                            }
+                          </CardDescription>
+                        </div>
+                        <div className="text-right">
+                          <div className={`text-2xl font-bold ${getRatingColor(avgRating)}`}>
+                            {avgRating}
+                          </div>
+                          <div className="text-sm text-muted-foreground">Average</div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {[
+                          { key: 'workplace_behaviour', label: 'Workplace Behaviour', value: rating.workplace_behaviour },
+                          { key: 'discipline', label: 'Discipline', value: rating.discipline },
+                          { key: 'innovations', label: 'Innovations', value: rating.innovations },
+                          { key: 'punctuality', label: 'Punctuality', value: rating.punctuality },
+                          { key: 'critical_task_delivery', label: 'Critical Task Delivery', value: rating.critical_task_delivery }
+                        ].map(field => (
+                          <div key={field.key} className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <Label className="text-sm font-medium">{field.label}</Label>
+                              <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1">
+                                  {[1, 2, 3, 4, 5].map(star => (
+                                    <Star
+                                      key={star}
+                                      className={`h-4 w-4 ${
+                                        star <= field.value
+                                          ? 'fill-yellow-400 text-yellow-400'
+                                          : 'text-gray-300'
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+                                <span className="text-sm font-semibold w-8 text-right">{field.value}/5</span>
+                              </div>
+                            </div>
+                            <div className="w-full bg-secondary rounded-full h-2">
+                              <div
+                                className="bg-primary h-2 rounded-full transition-all"
+                                style={{ width: `${(field.value / 5) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {rating.comments && (
+                        <>
+                          <Separator />
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-sm font-medium">
+                              <MessageSquare className="h-4 w-4" />
+                              Comments
+                            </div>
+                            <p className="text-sm text-muted-foreground bg-muted p-3 rounded-md">
+                              {rating.comments}
+                            </p>
+                          </div>
+                        </>
+                      )}
+
+                      <Separator />
+
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          <span>Rated by: {rating.rated_by_name} ({rating.rated_by_role})</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          <span>{new Date(rating.created_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Admin/Manager/HR View - Submit Rating Form */}
+      {canSubmit && user && (
+        <Card>
         <CardHeader>
           <CardTitle>Submit Employee Rating</CardTitle>
           <CardDescription>
@@ -453,6 +672,7 @@ function EmployeeRatingsPageContent() {
           </form>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }
